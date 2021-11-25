@@ -163,6 +163,11 @@ class WindowAttention3D(nn.Module):
             mask: (0/-inf) mask with shape of (num_windows, N, N) or None
         """
         B_, N, C = x.shape
+        """
+        self.qkv(x).shape = (num_windows*B, N, 3C)
+        self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).shape = (num_windows*B, N, 3, num_heads, C//num_heads)
+        self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).shape = (3, num_windows*B, num_heads, N, C//num_heads)        
+        """
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # B_, nH, N, C
 
@@ -452,6 +457,7 @@ class PatchEmbed3D(nn.Module):
     def forward(self, x):
         """Forward function."""
         # padding
+        #D is #frames
         _, _, D, H, W = x.size()
         if W % self.patch_size[2] != 0:
             x = F.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
@@ -577,7 +583,7 @@ class SwinTransformer3D(nn.Module):
         """Inflate the swin2d parameters to swin3d.
         The differences between swin3d and swin2d mainly lie in an extra
         axis. To utilize the pretrained parameters in 2d model,
-        the weight of swin2d models should be inflated to fit in the shapes of
+        the weight of swin2d model should be inflated to fit in the shapes of
         the 3d counterpart.
         Args:
             logger (logging.Logger): The logger used to print

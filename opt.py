@@ -12,13 +12,13 @@ parser.add_argument('--euler', default=False,type=bool,
 
 
 parser.add_argument('--exp_name', default='exp_name', type=str,
-                    help='experiment path (place to store models and logs)')
+                    help='experiment path (place to store model and logs)')
 
 parser.add_argument('--img_size', default=[256, 456],
                     help='image size: [H, W]')  #
-parser.add_argument('--img_resize', default=[224, 320],
+parser.add_argument('--img_resize', default=[224, 224],
                     help='image resize: [H, W]')  #
-parser.add_argument('--normalize', default=False, help='subtract mean value')
+parser.add_argument('--normalize', default=True, help='subtract mean value')
 parser.add_argument('--crop', default=False, help='')
 parser.add_argument('--feature_len', type=int, default=6,
                     help='number of frames using for memory module')

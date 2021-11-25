@@ -1,22 +1,13 @@
-import math
-import os
 import time
-import pickle
 from ast import literal_eval
 
-import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
-from scipy import ndimage
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 from opt import *
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from torchvision.io import read_image,ImageReadMode
-import  cv2
 
 
 
@@ -141,14 +132,13 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
                                             "nao_bbox_resized": literal_eval,
                                             "previous_frames":literal_eval})
             annos['img_path']=img_path
-            annos['all_frames']=annos.apply(combine_all_frames,axis=1)
 
             if not annos.empty:
                 generate_pseudo_track_id(annos)  # 生成track_id
 
 
                 annos_subset=annos[['img_path',  'pseudo_track_id',
-                                                 'nao_bbox_resized', 'label','all_frames']]
+                                                 'nao_bbox_resized', 'label','previous_frames','frame']]
                 df_items = df_items.append(annos_subset)
 
 
@@ -180,6 +170,7 @@ class NAODataset(Dataset):
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         if args.normalize:
             self.transform = transforms.Compose([  # [h, w]
+                transforms.Resize(args.img_resize),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])  # ImageNet
@@ -194,29 +185,31 @@ class NAODataset(Dataset):
 
         # path where images are stored
         img_dir = df_item.img_path
-        all_frames=df_item.all_frames
-        images=[]
+        previous_frames=[]
         # for i in range(0,1):
-        for i in range(0,len(all_frames)):
-            image_name=f'frame_{str(all_frames[i]).zfill(10)}.jpg'
+        for i in range(0,len(df_item.previous_frames)):
+            image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             # img_io=read_image(os.path.join(img_dir,image_name),ImageReadMode.RGB)
             # img_io=img_io/255.
             # img_io=self.Normalize(img_io)
             img=Image.open(os.path.join(img_dir,image_name))
             # print(img)
-            img=img.resize((self.args.img_resize[1],
-                          self.args.img_resize[0]))
+            # img=img.resize((self.args.img_resize[1],
+            #               self.args.img_resize[0]))
             img=self.transform(img)
             # print(f'io: {img_io.shape}, original: {img.shape}')
             # print(torch.eq(img_io,img))
             # print(img)
             # print(img_io)
-            images.append(img)
-        images=torch.cat(images,dim=0)
+            previous_frames.append(img)
+        previous_frames=torch.stack(previous_frames)
+        previous_frames=previous_frames.transpose(0,1)
+        current_frame=Image.open(os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg'))
+        current_frame=self.transform(current_frame)
 
-        return images, torch.tensor(df_item.nao_bbox)
+        return previous_frames,current_frame, torch.tensor(df_item.nao_bbox)
 
-    def __len__(self):  # batch迭代的次数与其有关
+    def __len__(self):
         return self.data.shape[0]
 
 
@@ -234,8 +227,9 @@ if __name__ == '__main__':
     print(f'start traversing the dataloader')
     start = time.time()
     for data in train_dataloader:
-        images,nao_bbox=data
-        images_shape=images.shape
+        previous_frames,current_frame,nao_bbox=data
+        print(f'previous frames shape: {previous_frames.shape}')
+        print(f'current_frame shape: {current_frame.shape}')
         nao_bbox_shape=nao_bbox.shape
     end = time.time()
     print(f'used time: {end-start}')
