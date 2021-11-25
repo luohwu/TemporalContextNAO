@@ -1,10 +1,9 @@
 import torch
 from torch import  nn
 from torchvision import models
-from mmcv import Config, DictAction
+from mmcv import Config
 from mmaction.models import build_model
-from mmcv.runner import get_dist_info, init_dist, load_checkpoint
-from model.unet_resnet import UNetResNet18
+from mmcv.runner import load_checkpoint
 
 class FuseBlock(nn.Module):
     def __init__(self,time_length):

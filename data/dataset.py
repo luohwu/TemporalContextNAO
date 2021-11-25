@@ -163,9 +163,6 @@ class NAODataset(Dataset):
         self.dataset_name=dataset_name
 
 
-        # print(f'{mode} data: {self.data.shape[0]}')
-
-        # # pandas的shuffle
         self.data = self.data.sample(frac=1).reset_index(drop=True)
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         if args.normalize:
@@ -177,6 +174,7 @@ class NAODataset(Dataset):
             ])
         else:
             self.transform = transforms.Compose([
+                transforms.Resize(args.img_resize),
                 transforms.ToTensor()
             ])
 
@@ -189,18 +187,8 @@ class NAODataset(Dataset):
         # for i in range(0,1):
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
-            # img_io=read_image(os.path.join(img_dir,image_name),ImageReadMode.RGB)
-            # img_io=img_io/255.
-            # img_io=self.Normalize(img_io)
             img=Image.open(os.path.join(img_dir,image_name))
-            # print(img)
-            # img=img.resize((self.args.img_resize[1],
-            #               self.args.img_resize[0]))
             img=self.transform(img)
-            # print(f'io: {img_io.shape}, original: {img.shape}')
-            # print(torch.eq(img_io,img))
-            # print(img)
-            # print(img_io)
             previous_frames.append(img)
         previous_frames=torch.stack(previous_frames)
         previous_frames=previous_frames.transpose(0,1)
@@ -218,8 +206,6 @@ class NAODataset(Dataset):
 
 
 if __name__ == '__main__':
-    # check_data_annos(args)
-    # train_dataset = EpicDataset(args)
     train_dataset = NAODataset(mode='train',dataset_name=args.dataset)
     train_dataset.data.to_csv('/media/luohwu/T7/dataset/EPIC/test.csv',index=False)
     train_dataloader = DataLoader(train_dataset, batch_size=4,

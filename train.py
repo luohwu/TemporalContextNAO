@@ -1,19 +1,15 @@
 
-import os
 from datetime import datetime
 
 import torch.cuda
-from tensorboardX import SummaryWriter
 from torch import optim
 from torch.utils.data import DataLoader
 from data.dataset import NAODataset
-from model.unet_resnet_hand_att import UNetResnetHandAtt
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS
 from model.temporal_context_net import TemporalNaoNet
 from torch import  nn
-from torch.autograd import Variable
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -30,7 +26,6 @@ TIMESTAMP = "{0:%Y-%m-%dT%H-%M-%S/}".format(datetime.now())
 
 multi_gpu = True if torch.cuda.device_count() > 1 else False
 print(f'using {torch.cuda.device_count()} GPUs')
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -39,7 +34,6 @@ def main():
     for p in model.temporal_context_extractor.parameters():
         p.requires_grad = False
 
-    # model.cuda(device=args.device_ids[0])
     if multi_gpu == True:
         model = nn.DataParallel(model)
     model = model.to(device)
@@ -63,16 +57,16 @@ def main():
                                                      verbose=True,
                                                      min_lr=0.0000001)
 
-    # if multi_gpu:
-    #     optimizer = nn.DataParallel(optimizer)
+    """"
+    Heatmap version
+    """
+
+    # if args.dataset == 'EPIC':
+    #     # class_weights = torch.FloatTensor([1, 11.2]).cuda(args.device_ids[0])
+    #     class_weights = torch.FloatTensor([1, 11.2]).to(device)
     # else:
-    # UNet的criterion
-    if args.dataset == 'EPIC':
-        # class_weights = torch.FloatTensor([1, 11.2]).cuda(args.device_ids[0])
-        class_weights = torch.FloatTensor([1, 11.2]).to(device)
-    else:
-        # class_weights = torch.FloatTensor([1, 9.35]).cuda(args.device_ids[0])
-        class_weights = torch.FloatTensor([1, 9.35]).to(device)
+    #     # class_weights = torch.FloatTensor([1, 9.35]).cuda(args.device_ids[0])
+    #     class_weights = torch.FloatTensor([1, 9.35]).to(device)
     # criterion = nn.CrossEntropyLoss(class_weights)
     criterion = CIOU_LOSS()
     # criterion = FocalLoss()
@@ -104,32 +98,22 @@ def main():
                         'train_loss_list': train_loss_list},
                        checkpoint_path)
         print(f'train loss: {train_loss:.8f} | val loss:{val_loss:.8f}')
-        # print(f"==================epoch :{epoch}/{train_args['epochs']+1}===============================================")
-
-    # writer_train.close()
-    # write_val.close()
 
 
 def train(train_dataloader, model, criterion, optimizer, epoch, train_args):
     train_losses = 0.
-    # curr_iter = (epoch - 1) * len(train_dataloader)
 
     for i, data in enumerate(train_dataloader, start=1):
         previous_frames,current_frame, nao_bbox = data
         previous_frames=previous_frames.to(device)
         current_frame=current_frame.to(device)
         nao_bbox=nao_bbox.to(device)
-        # img = Variable(img.float().cuda(args.device_ids[0]))
-        # hand_hm = Variable(hand_hm.float().cuda(args.device_ids[0]))
-        # forward
+
+        #forward
         outputs = model(previous_frames,current_frame)
-        # print(f'output size:{outputs.shape}')
-        # outputs = model(hand_hm)
         del previous_frames,current_frame
 
         loss, _ = criterion(outputs, nao_bbox.to(device))
-        # print(f'mask shape: {mask.shape}')
-        # print(f'output shape: {outputs.shape}')
 
         del outputs, nao_bbox
 
@@ -149,8 +133,6 @@ def val(val_dataloader, model, criterion, epoch, write_val):
     num_correct = 0
     iou_threshold = 0.5
     len_dataset = len(val_dataloader.dataset)
-    # targets_all, predictions_all = [], []
-    # loader_size=len(val_dataloader)
     with torch.no_grad():
         for i, data in enumerate(val_dataloader):
             # print(f'{i}/{loader_size}')
