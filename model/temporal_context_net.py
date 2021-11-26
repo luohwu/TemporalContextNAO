@@ -15,8 +15,8 @@ class FuseBlock(nn.Module):
 
         # channels of features extracted by ResNet20 is 2048
         # channels of temporal context is 1024
-        self.cn=nn.Conv2d(2048,1024,kernel_size=1,stride=1)
-        self.cn2=nn.Conv2d(1024,256,kernel_size=1,stride=1)
+        self.cn=nn.Conv2d(2048,1,kernel_size=1,stride=1)
+        self.cn2=nn.Conv2d(1024,1,kernel_size=1,stride=1)
 
     def forward(self,context_features,visual_feature):
         # [B,C,T,H, W] -> [B,T,C,H,W]
@@ -26,7 +26,9 @@ class FuseBlock(nn.Module):
         visual_feature=self.cn(visual_feature)
 
         # C 1025 -> 256
-        return self.cn2(compreseed_context_features+visual_feature)
+        return self.cn(compreseed_context_features)+self.cn2(visual_feature)
+        # return self.cn2(compreseed_context_features+visual_feature)
+
 
 
 class TemporalNaoNet(nn.Module):
@@ -49,8 +51,9 @@ class TemporalNaoNet(nn.Module):
 
         self.fuse_block=FuseBlock(time_length)
 
-        self.MLP=nn.Sequential(nn.Linear(12544,4096),
-                               nn.Linear(4096,4)
+        self.MLP=nn.Sequential(
+                               # nn.Linear(12544,4096),
+                               nn.Linear(49,4)
                                )
 
         self.flattern=nn.Flatten(1)

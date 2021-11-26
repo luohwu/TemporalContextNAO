@@ -46,10 +46,13 @@ def main():
                                 batch_size=args.bs,
                                 shuffle=True, num_workers=2,
                                 pin_memory=True)
-    optimizer = optim.Adam(model.parameters(),
+    # optimizer = optim.Adam(model.parameters(),
+    #                        lr=args.lr,
+    #                        betas=(0.9, 0.99),
+    #                        weight_decay=args.weight_decay)
+    optimizer = optim.AdamW(model.parameters(),
                            lr=args.lr,
-                           betas=(0.9, 0.99),
-                           weight_decay=args.weight_decay)
+                           betas=(0.9, 0.99))
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                      mode='min',
                                                      factor=0.8,
