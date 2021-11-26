@@ -15,15 +15,17 @@ class FuseBlock(nn.Module):
 
         # channels of features extracted by ResNet20 is 2048
         # channels of temporal context is 1024
-        self.cn=nn.Conv2d(2048,1,kernel_size=1,stride=1)
-        self.cn2=nn.Conv2d(1024,1,kernel_size=1,stride=1)
+        self.cn=nn.Conv2d(1024,1,kernel_size=1,stride=1)
+        self.cn2=nn.Conv2d(2048,1,kernel_size=1,stride=1)
 
     def forward(self,context_features,visual_feature):
         # [B,C,T,H, W] -> [B,T,C,H,W]
         context_features=context_features.permute(0,2,1,3,4)
         compreseed_context_features=self.reduce_time(context_features)
         compreseed_context_features=compreseed_context_features.squeeze(1)
-        visual_feature=self.cn(visual_feature)
+        # visual_feature=self.cn(visual_feature)
+        print(compreseed_context_features.shape)
+        print(visual_feature.shape)
 
         # C 1025 -> 256
         return self.cn(compreseed_context_features)+self.cn2(visual_feature)
@@ -35,8 +37,8 @@ class TemporalNaoNet(nn.Module):
     def __init__(self,time_length):
         super(TemporalNaoNet,self).__init__()
         self.temporal_length=time_length
-        config = 'configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
-        checkpoint = 'checkpoints/swin_base_patch244_window1677_sthv2.pth'
+        config = '../configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
+        checkpoint = '../checkpoints/swin_base_patch244_window1677_sthv2.pth'
         cfg = Config.fromfile(config)
         model = build_model(cfg.model, train_cfg=None, test_cfg=cfg.get('test_cfg'))
         load_checkpoint(model, checkpoint, map_location='cpu')

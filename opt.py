@@ -55,9 +55,9 @@ if args.dataset == 'ADL':
     frames_path = 'rgb_frames'  #
     if args.debug:
         # train_video_id = {'P_01', 'P_02', 'P_03', 'P_04', 'P_05', 'P_06'}
-        train_video_id = ['P_02']
-        val_video_id = ['P_03']
-        test_video_id = ['P_03']
+        train_video_id = ['P_10']
+        val_video_id = ['P_12']
+        test_video_id = ['P_12']
 
 else:
     id = {'P01P01_01', 'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
