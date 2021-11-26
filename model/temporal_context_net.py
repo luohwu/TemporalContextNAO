@@ -37,8 +37,8 @@ class TemporalNaoNet(nn.Module):
     def __init__(self,time_length):
         super(TemporalNaoNet,self).__init__()
         self.temporal_length=time_length
-        config = '../configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
-        checkpoint = '../checkpoints/swin_base_patch244_window1677_sthv2.pth'
+        config = 'configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
+        checkpoint = 'checkpoints/swin_base_patch244_window1677_sthv2.pth'
         cfg = Config.fromfile(config)
         model = build_model(cfg.model, train_cfg=None, test_cfg=cfg.get('test_cfg'))
         load_checkpoint(model, checkpoint, map_location='cpu')
