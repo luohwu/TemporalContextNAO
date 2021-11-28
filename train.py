@@ -1,6 +1,6 @@
 
 from datetime import datetime
-
+import matplotlib.pyplot as plt
 import torch.cuda
 from torch import optim
 from torch.utils.data import DataLoader
@@ -10,7 +10,7 @@ import tarfile
 from tools.CIOU import CIOU_LOSS
 from model.temporal_context_net import TemporalNaoNet
 from torch import  nn
-
+import pandas as pd
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -84,7 +84,7 @@ def main():
     train_loss_list = []
     val_loss_list = []
     current_epoch = 0
-    epoch_save = 50 if args.dataset == 'EPIC' else 200
+    epoch_save = 50 if args.dataset == 'EPIC' else 100
     for epoch in range(current_epoch + 1, train_args['epochs'] + 1):
         print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
         train_loss = train(train_dataloader, model, criterion, optimizer, epoch, train_args)
@@ -94,12 +94,25 @@ def main():
         val_loss_list.append(val_loss)
         if epoch % epoch_save == 0:
             checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
+            loss_path = os.path.join(train_args['ckpt_path'], f'loss.csv')
+            figure_path = os.path.join(train_args['ckpt_path'], f'loss.jpg')
+
             torch.save({'epoch': epoch,
                         'model_state_dict': model.state_dict(),
-                        'optimizer_state_dict': optimizer.state_dict(),
-                        'val_loss_list': val_loss_list,
-                        'train_loss_list': train_loss_list},
+                        'optimizer_state_dict': optimizer.state_dict()
+                        },
                        checkpoint_path)
+            loss_df=pd.DataFrame()
+            loss_df['train_loss']=train_loss_list
+            loss_df['val_loss']=val_loss_list
+            loss_df.to_csv(loss_path,index=False)
+            plt.plot(train_loss_list)
+            plt.plot(val_loss_list)
+            plt.legend(['train loss', 'val loss'])
+            plt.title('IntentNet Bounding Box')
+            plt.savefig(figure_path)
+            plt.close()
+
         print(f'train loss: {train_loss:.8f} | val loss:{val_loss:.8f}')
 
 

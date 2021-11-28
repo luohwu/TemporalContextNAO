@@ -24,8 +24,8 @@ class FuseBlock(nn.Module):
         compreseed_context_features=self.reduce_time(context_features)
         compreseed_context_features=compreseed_context_features.squeeze(1)
         # visual_feature=self.cn(visual_feature)
-        print(compreseed_context_features.shape)
-        print(visual_feature.shape)
+        # print(compreseed_context_features.shape)
+        # print(visual_feature.shape)
 
         # C 1025 -> 256
         return self.cn(compreseed_context_features)+self.cn2(visual_feature)
