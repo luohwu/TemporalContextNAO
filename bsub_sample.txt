@@ -1,0 +1,1 @@
+bsub -n 4 -oo /cluster/home/luohwu/experiments/ADL/temporal_bbox/stdout.log -W 48:00 -R "rusage[mem=4096,ngpus_excl_p=1,scratch=10000]" -R "select[gpu_mtotal0>=4096]"  python train.py --euler True  --exp_name temporal_bbox --lr 3e-4 --epochs 10

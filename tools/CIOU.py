@@ -2,6 +2,8 @@ import torch
 from torch import nn
 import math
 
+total_area=256*456
+
 class CIOU_LOSS(nn.Module):
     def __init__(self):
         super(CIOU_LOSS, self).__init__()
@@ -44,8 +46,16 @@ class CIOU_LOSS(nn.Module):
             alpha = S * v / (1 - iou + v)
         cious = iou - u - alpha * v
         cious = torch.clamp(cious, min=-1.0, max=1.0)
+
+        """"
+        binary classification accuracy
+        total_area=256*456
+        """
+        acc=(total_area-union+inter_area)/total_area
+
+
         # return cious
-        return torch.sum(1 - cious),iou
+        return torch.sum(1 - cious), acc
 
 
 if __name__=='__main__':

@@ -1,4 +1,4 @@
-
+from comet_ml import Experiment
 from datetime import datetime
 import matplotlib.pyplot as plt
 import torch.cuda
@@ -11,9 +11,15 @@ from tools.CIOU import CIOU_LOSS
 from model.temporal_context_net import TemporalNaoNet
 from torch import  nn
 import pandas as pd
+import cv2
+from tools.heatmap import generate_heatmap
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+experiment = Experiment(
+    api_key="wU5pp8GwSDAcedNSr68JtvCpk",
+    project_name="intent-net",
+    workspace="thesisproject",
+)
 
 SEED = 0
 torch.manual_seed(SEED)
@@ -74,7 +80,7 @@ def main():
     criterion = CIOU_LOSS()
     # criterion = FocalLoss()
 
-    train_args['ckpt_path'] = os.path.join(train_args['exp_path'],
+    train_args['ckpt_path'] = os.path.join(train_args['exp_path'],args.dataset,
                                            exp_name, 'ckpts/')
     if not os.path.exists(train_args['ckpt_path']):
         os.mkdir(train_args['ckpt_path'])
@@ -84,43 +90,34 @@ def main():
     train_loss_list = []
     val_loss_list = []
     current_epoch = 0
-    epoch_save = 50 if args.dataset == 'EPIC' else 100
+    epoch_save = 50 if args.dataset == 'EPIC' else 2
     for epoch in range(current_epoch + 1, train_args['epochs'] + 1):
         print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
-        train_loss = train(train_dataloader, model, criterion, optimizer, epoch, train_args)
-        val_loss = val(val_dataloader, model, criterion, epoch, write_val)
+
+        val_loss = val(val_dataloader, model, criterion, epoch,illustration=True)
+        train_loss = train(train_dataloader, model, criterion, optimizer)
         scheduler.step(val_loss)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
         if epoch % epoch_save == 0:
-            checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
-            loss_path = os.path.join(train_args['ckpt_path'], f'loss.csv')
-            figure_path = os.path.join(train_args['ckpt_path'], f'loss.jpg')
+            # checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
+            #
+            # torch.save({'epoch': epoch,
+            #             'model_state_dict': model.state_dict(),
+            #             'optimizer_state_dict': optimizer.state_dict()
+            #             },
+            #            checkpoint_path)
+            val(val_dataloader, model, criterion, epoch, illustration=True)
 
-            torch.save({'epoch': epoch,
-                        'model_state_dict': model.state_dict(),
-                        'optimizer_state_dict': optimizer.state_dict()
-                        },
-                       checkpoint_path)
-            loss_df=pd.DataFrame()
-            loss_df['train_loss']=train_loss_list
-            loss_df['val_loss']=val_loss_list
-            loss_df.to_csv(loss_path,index=False)
-            plt.plot(train_loss_list)
-            plt.plot(val_loss_list)
-            plt.legend(['train loss', 'val loss'])
-            plt.title('IntentNet Bounding Box')
-            plt.savefig(figure_path)
-            plt.close()
 
         print(f'train loss: {train_loss:.8f} | val loss:{val_loss:.8f}')
 
 
-def train(train_dataloader, model, criterion, optimizer, epoch, train_args):
+def train(train_dataloader, model, criterion, optimizer):
     train_losses = 0.
 
     for i, data in enumerate(train_dataloader, start=1):
-        previous_frames,current_frame, nao_bbox = data
+        previous_frames,current_frame, nao_bbox, img_path = data
         previous_frames=previous_frames.to(device)
         current_frame=current_frame.to(device)
         nao_bbox=nao_bbox.to(device)
@@ -129,6 +126,7 @@ def train(train_dataloader, model, criterion, optimizer, epoch, train_args):
         outputs = model(previous_frames,current_frame)
         del previous_frames,current_frame
 
+        # loss and acc
         loss, _ = criterion(outputs, nao_bbox.to(device))
 
         del outputs, nao_bbox
@@ -142,40 +140,57 @@ def train(train_dataloader, model, criterion, optimizer, epoch, train_args):
     return train_losses / len(train_dataloader.dataset)
 
 
-def val(val_dataloader, model, criterion, epoch, write_val):
+def val(val_dataloader, model, criterion, epoch, illustration):
     model.eval()
     total_val_loss = 0
-    total_iou = 0
-    num_correct = 0
-    iou_threshold = 0.5
+    total_acc=0
+    global_min_acc=1
+    global_max_acc=0
     len_dataset = len(val_dataloader.dataset)
     with torch.no_grad():
         for i, data in enumerate(val_dataloader):
             # print(f'{i}/{loader_size}')
-            previous_frames,current_frame,nao_bbox = data
+            previous_frames,current_frame,nao_bbox, img_path = data
             previous_frames=previous_frames.to(device)
             current_frame=current_frame.to(device)
             nao_bbox=nao_bbox.to(device)
 
             outputs = model(previous_frames,current_frame)
             del previous_frames,current_frame
-            loss, iou = criterion(outputs, nao_bbox)
-            num_correct += torch.sum(iou > iou_threshold).item()
+            loss, acc = criterion(outputs, nao_bbox)
             total_val_loss += loss.item()
-            total_iou += torch.sum(iou).item()
+            total_acc += torch.sum(acc).item()
+
+            if illustration:
+                min_acc,min_index=acc.min(0)
+                max_acc,max_index=acc.max(0)
+                if global_min_acc > min_acc:
+                    global_min_acc = min_acc
+                    global_min_image = img_path[min_index]
+                    global_min_nao_bbox_gt = nao_bbox[min_index]
+                    global_min_nao_bbox = outputs[min_index]
+                if global_max_acc < max_acc:
+                    global_max_acc = max_acc
+                    global_max_image = img_path[max_index]
+                    global_max_nao_bbox_gt = nao_bbox[max_index]
+                    global_max_nao_bbox = outputs[max_index]
             del outputs, nao_bbox
 
-    val_loss_avg = total_val_loss / len_dataset
-    iou_avg = total_iou / len_dataset
-    print(
-        f'[epoch {epoch}], [val loss {val_loss_avg:5f}], [IOU avg {iou_avg:5f}], [acc avg {num_correct / len_dataset}]')
+    if illustration:
+        illustration_worst=generate_heatmap(global_min_image,global_min_nao_bbox,global_min_nao_bbox_gt)
+        illustration_best=generate_heatmap(global_max_image,global_max_nao_bbox,global_max_nao_bbox_gt)
+        experiment.log_image(illustration_worst,name=f'worst_{epoch}')
+        experiment.log_image(illustration_best, name=f'best_{epoch}')
 
-    write_val.writelines(f"[epoch {epoch}], [IOU avg {iou_avg:5f}],[acc avg {num_correct / len_dataset}] \n")
+    val_loss_avg = total_val_loss / len_dataset
+    acc_avg = total_acc / len_dataset
+    print(f'[epoch {epoch}], [val loss {val_loss_avg:5f}], [acc avg {acc_avg:5f}]')
 
 
     model.train()
 
     return val_loss_avg
+
 
 
 if __name__ == '__main__':

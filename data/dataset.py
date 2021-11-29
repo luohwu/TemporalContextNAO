@@ -6,10 +6,10 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-
+import cv2
 from opt import *
 
-
+import numpy as np
 
 def generate_pseudo_track_id(annos):
     video_id = annos.id[0]
@@ -192,10 +192,11 @@ class NAODataset(Dataset):
             previous_frames.append(img)
         previous_frames=torch.stack(previous_frames)
         previous_frames=previous_frames.transpose(0,1)
-        current_frame=Image.open(os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg'))
+        current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
+        current_frame=Image.open(current_frame_path)
         current_frame=self.transform(current_frame)
 
-        return previous_frames,current_frame, torch.tensor(df_item.nao_bbox)
+        return previous_frames,current_frame, torch.tensor(df_item.nao_bbox),current_frame_path
 
     def __len__(self):
         return self.data.shape[0]
@@ -213,10 +214,28 @@ if __name__ == '__main__':
     print(f'start traversing the dataloader')
     start = time.time()
     for data in train_dataloader:
-        previous_frames,current_frame,nao_bbox=data
+        previous_frames,current_frame,nao_bbox,current_frame_path=data
         print(f'previous frames shape: {previous_frames.shape}')
         print(f'current_frame shape: {current_frame.shape}')
+        print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
+
         nao_bbox_shape=nao_bbox.shape
+
+        """"
+        test data and annotations
+        need to undo-resize first !!!
+        """
+        # current_frame_example=current_frame[0].permute(1,2,0).numpy()
+        # current_frame_example*=255
+        # cv2.imwrite('test.jpg',current_frame_example)
+        # cv2_image=cv2.imread('test.jpg')
+        # cv2_image=cv2.cvtColor(cv2_image,cv2.COLOR_BGR2RGB)
+        # nao_bbox_example=nao_bbox[0]
+        # cv2.rectangle(cv2_image,(nao_bbox_example[0],nao_bbox_example[1]),(nao_bbox_example[2],nao_bbox_example[3]),(255,0,0),3)
+        #
+        # cv2.imshow('example',cv2_image)
+        # cv2.waitKey(0)
+
     end = time.time()
     print(f'used time: {end-start}')
         # print(f'images size: {images.shape}, nao_bbox: {nao_bbox.shape}')
