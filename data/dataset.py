@@ -110,9 +110,15 @@ def combine_all_frames(row):
 def make_sequence_dataset(mode='train',dataset_name='ADL'):
 
     #val is the same as test
-    par_video_id_list=train_video_id if mode=='train' else test_video_id
+    if mode=='all':
+        par_video_id_list=id
+    elif mode=='train':
+        par_video_id_list = train_video_id
+    else:
+        par_video_id_list=test_video_id
 
-    print(f'start load {mode} data, size: {len(par_video_id_list)}')
+
+    print(f'start load {mode} data, #videos: {len(par_video_id_list)}')
     df_items = pd.DataFrame()
     for video_id in sorted(par_video_id_list):
         anno_name = 'nao_' + video_id + '.csv'
@@ -183,20 +189,12 @@ class NAODataset(Dataset):
 
         # path where images are stored
         img_dir = df_item.img_path
-        previous_frames=[]
-        # for i in range(0,1):
-        for i in range(0,len(df_item.previous_frames)):
-            image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
-            img=Image.open(os.path.join(img_dir,image_name))
-            img=self.transform(img)
-            previous_frames.append(img)
-        previous_frames=torch.stack(previous_frames)
-        previous_frames=previous_frames.transpose(0,1)
+
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
         current_frame=self.transform(current_frame)
 
-        return previous_frames,current_frame, torch.tensor(df_item.nao_bbox),current_frame_path
+        return current_frame, torch.tensor(df_item.nao_bbox),current_frame_path
 
     def __len__(self):
         return self.data.shape[0]
@@ -207,15 +205,19 @@ class NAODataset(Dataset):
 
 
 if __name__ == '__main__':
-    train_dataset = NAODataset(mode='train',dataset_name=args.dataset)
-    train_dataset.data.to_csv('/media/luohwu/T7/dataset/EPIC/test.csv',index=False)
+    train_dataset = NAODataset(mode='train', dataset_name=args.dataset)  # len=1765
+    test_dataset = NAODataset(mode='test', dataset_name=args.dataset)# len=452
+
+    # print(f'train length: {len(train_dataset)}, test length: {len(test_dataset)}')
+
+    print(f'train dataset len: {len(train_dataset)}')
+    # train_dataset.data.to_csv(f'/media/luohwu/T7/dataset/{args.dataset}/test.csv',index=False)
     train_dataloader = DataLoader(train_dataset, batch_size=4,
                                   num_workers=8, shuffle=False,pin_memory=True)
     print(f'start traversing the dataloader')
     start = time.time()
     for data in train_dataloader:
-        previous_frames,current_frame,nao_bbox,current_frame_path=data
-        print(f'previous frames shape: {previous_frames.shape}')
+        current_frame,nao_bbox,current_frame_path=data
         print(f'current_frame shape: {current_frame.shape}')
         print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
 

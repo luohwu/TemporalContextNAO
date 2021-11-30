@@ -7,7 +7,10 @@ parser = argparse.ArgumentParser(description='training parameters')
 parser.add_argument('--dataset', type=str, default='ADL',
                     help='EPIC or ADL')
 
-parser.add_argument('--euler', default=False,type=bool,
+parser.add_argument('--original_split', default=False, action="store_true",
+                    help='original train/test split or split after mixing')
+
+parser.add_argument('--euler', default=False,action="store_true",
                     help='runing on euler or local computer')
 
 
@@ -20,17 +23,12 @@ parser.add_argument('--img_resize', default=[224, 224],
                     help='image resize: [H, W]')  #
 parser.add_argument('--normalize', default=True, help='subtract mean value')
 parser.add_argument('--crop', default=False, help='')
-parser.add_argument('--feature_len', type=int, default=6,
-                    help='number of frames using for memory module')
 
-parser.add_argument('--mode', default='train',
-                    help='train , val or test')
 parser.add_argument('--debug', default=False, help='debug')
 
 parser.add_argument('--bs', default=32, type=int, help='batch size')
-parser.add_argument('--epochs', default=5000, type=int, help='Number of epochs')
+parser.add_argument('--epochs', default=1000, type=int, help='Number of epochs')
 parser.add_argument('--lr', default=0.000002, type=float, help='learning rate')
-parser.add_argument('--momentum', default=0.9, help='momentum')
 parser.add_argument('--weight_decay', default=0.0005, help='weight decay')
 
 args = parser.parse_args()
@@ -140,3 +138,11 @@ else:
     if args.debug:
         train_video_id = ['P01P01_01']
         val_video_id=test_video_id = ['P01P01_01']
+
+
+if __name__=='__main__':
+    print(f'original split? {args.original_split}')
+    if args.euler:
+        print(f'using euler')
+    else:
+        print(f'using local ')

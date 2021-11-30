@@ -4,7 +4,7 @@ from torchvision import models
 from mmcv import Config
 from mmaction.models import build_model
 from mmcv.runner import load_checkpoint
-
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class FuseBlock(nn.Module):
     def __init__(self,time_length):
         super(FuseBlock,self).__init__()
@@ -34,70 +34,45 @@ class FuseBlock(nn.Module):
 
 
 class TemporalNaoNet(nn.Module):
-    def __init__(self,time_length):
+    def __init__(self):
         super(TemporalNaoNet,self).__init__()
-        self.temporal_length=time_length
-        config = 'configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
-        checkpoint = 'checkpoints/swin_base_patch244_window1677_sthv2.pth'
-        cfg = Config.fromfile(config)
-        model = build_model(cfg.model, train_cfg=None, test_cfg=cfg.get('test_cfg'))
-        load_checkpoint(model, checkpoint, map_location='cpu')
+
         resnet = models.resnet50(pretrained=True)
         modules = list(resnet.children())[:-2]
         self.visual_feature = nn.Sequential(*modules)
+        self.head=nn.Sequential(
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(1),
+            # nn.BatchNorm1d(2048),
+            nn.Linear(2048,1024),
+            nn.ReLU(),
+            nn.Linear(1024,4),
+            nn.Sigmoid()
+        )
 
-        # input: [batch_size, channel, temporal_dim, height, width] e.g. (1, 3, 32, 224, 224)
-        # output:  [batch_size, hidden_dim, temporal_dim/2, height/32, width/32] e.g.[1, 1024, 16, 7, 7]
-        self.temporal_context_extractor=model.backbone
-        # self.base_model=UNetResNet18()
-
-        self.fuse_block=FuseBlock(time_length)
-
-        self.MLP=nn.Sequential(
-                               # nn.Linear(12544,4096),
-                               nn.Linear(49,4)
-                               )
-
-        self.flattern=nn.Flatten(1)
 
 
     # previous_frames: [batch_size, channel, temporal_dim, height, width]
     # current frame: [batch_sze, channel, height, width]
-    def forward(self,previous_frames,current_frame):
+    def forward(self,current_frame):
 
-        # context: [batch_size, hidden_dim, temporal_dim/2, height/32, width/32]
-        context=self.temporal_context_extractor(previous_frames)
-        # print(f'context shape: ',context.shape)
 
-        # visual_feature: [batch_size, new_channels, height, width]
-        # _, visual_feature = self.base_model(current_frame, with_output_feature_map=True)
-        # print(f'visual feature shape: {visual_feature.shape}')
-
-        # visual_feature: [batch_size, new_channels, height, width]
-        # print(f'current frame shape: {current_frame.shape}')
         visual_feature = self.visual_feature(current_frame)
         # print(f'visual feature shape: {visual_feature.shape}')
+        head=self.head(visual_feature)
+        # print(f'head shape: {head.shape}')
+        return head*torch.tensor([456,256,456,256]).to(device)
 
-        fused_feature=self.fuse_block(context,visual_feature)
-        # print(f'fused features shape',fused_feature.shape)
 
 
-        return self.MLP(self.flattern(fused_feature))
 
 
 if __name__=='__main__':
-    # resnet = models.resnet50(pretrained=True)
-    # modules = list(resnet.children())[:-2]
-    # resnet=nn.Sequential(*modules)
-    # img=torch.rand(1,3,224,224)
-    # output=resnet(img)
-    # print(output.shape)
 
 
-    model=TemporalNaoNet(time_length=10)
-    total_params = sum(p.numel() for p in model.parameters())-sum(p.numel() for p in model.temporal_context_extractor.parameters())
-    print(f'total # of parameters: {total_params}')  # 参数总数: 19341058
-    previous_frames=torch.rand(4, 3, 10, 224, 224)
+
+    model=TemporalNaoNet()
     current_frame=torch.rand(4,3,224,224)
-    output=model(previous_frames,current_frame)
+    output=model(current_frame)
     print(output.shape)
