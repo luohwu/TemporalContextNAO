@@ -24,7 +24,7 @@ experiment = Experiment(
     workspace="thesisproject",
     auto_metric_logging=False
 )
-
+experiment.log_parameters(args.__dict__)
 SEED = 40
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
@@ -41,6 +41,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def main():
     model=TemporalNaoNet()
+    for p in model.visual_feature.parameters():
+        p.requires_grad=False
 
     if multi_gpu == True:
         model = nn.DataParallel(model)
@@ -203,8 +205,9 @@ def val(val_dataloader, model, criterion, epoch, illustration):
     print(f'[epoch {epoch}], [val loss {val_loss_avg:5f}], [acc avg {acc_avg:5f}],[f1 avg {f1_avg:5f}] ')
     experiment.log_metric("val_acc_avg", acc_avg, step=epoch)
     experiment.log_metric("val_f1_avg", f1_avg, step=epoch)
-    experiment.log_confusion_matrix(matrix=conf_matrix_avg,title=f"confusion matrix epoch-{epoch}",row_label="Actual Category",
-                                    column_label="Predicted Category",step=epoch)
+    experiment.log_confusion_matrix(matrix=conf_matrix_avg, title=f"confusion matrix epoch {epoch}",
+                                    file_name=f"confusion_matrix_epoc_{epoch}.json",row_label="Actual Category",
+                                    column_label="Predicted Category",labels=["1","0"],step=epoch)
 
     model.train()
 
