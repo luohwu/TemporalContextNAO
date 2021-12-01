@@ -1,3 +1,5 @@
+import os
+
 from comet_ml import Experiment
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -36,13 +38,16 @@ TIMESTAMP = "{0:%Y-%m-%dT%H-%M-%S/}".format(datetime.now())
 
 multi_gpu = True if torch.cuda.device_count() > 1 else False
 print(f'using {torch.cuda.device_count()} GPUs')
+print('current graphics card is:')
+os.system('lspci | grep VGA')
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def main():
     model=TemporalNaoNet()
-    for p in model.visual_feature.parameters():
-        p.requires_grad=False
+    # for p in model.visual_feature.parameters():
+    #     p.requires_grad=False
 
     if multi_gpu == True:
         model = nn.DataParallel(model)
@@ -52,7 +57,11 @@ def main():
         val_data = NAODataset(mode='val',dataset_name=args.dataset)
     else:
         all_data=NAODataset(mode='all',dataset_name=args.dataset)
-        train_data, val_data = torch.utils.data.random_split(all_data, [1767, 450])
+        if args.dataset=='ADL':
+            train_data, val_data = torch.utils.data.random_split(all_data, [1767, 450])
+        else:
+            train_data, val_data = torch.utils.data.random_split(all_data, [8589, 3000])
+
     print(f'train dataset size: {len(train_data)}, val dataset size: {len(val_data)}')
     train_dataloader = DataLoader(train_data, batch_size=args.bs,
                                   shuffle=True, num_workers=2,

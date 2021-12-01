@@ -42,7 +42,7 @@ def visualize(par_video_id):
             cv2.destroyAllWindows()
 
 if __name__=='__main__':
-    par_video_id_list=['P01P01_01' ]
+    par_video_id_list=['P_01' ]
     # par_video_id_list=['P_11','P_02', 'P_03' ]
     for par_video_id in par_video_id_list:
         visualize(par_video_id)

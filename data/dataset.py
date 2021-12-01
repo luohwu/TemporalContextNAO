@@ -205,12 +205,12 @@ class NAODataset(Dataset):
 
 
 if __name__ == '__main__':
-    train_dataset = NAODataset(mode='train', dataset_name=args.dataset)  # len=1765
-    test_dataset = NAODataset(mode='test', dataset_name=args.dataset)# len=452
+    train_dataset = NAODataset(mode='train', dataset_name=args.dataset)  # len=1765 for ADL, 8514 for EPIC
+    test_dataset = NAODataset(mode='test', dataset_name=args.dataset)# len=452 for ADL, 3075 for EPIC
 
-    # print(f'train length: {len(train_dataset)}, test length: {len(test_dataset)}')
+    print(f'train length: {len(train_dataset)}, test length: {len(test_dataset)}')
 
-    print(f'train dataset len: {len(train_dataset)}')
+
     # train_dataset.data.to_csv(f'/media/luohwu/T7/dataset/{args.dataset}/test.csv',index=False)
     train_dataloader = DataLoader(train_dataset, batch_size=4,
                                   num_workers=8, shuffle=False,pin_memory=True)
