@@ -46,8 +46,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def main():
     model=TemporalNaoNet()
-    for p in model.visual_feature.parameters():
-        p.requires_grad=False
+    # for p in model.visual_feature.parameters():
+    #     p.requires_grad=False
     number_of_parameters=sum(p.numel() for p in model.parameters())
     print(f'number of parameters: {number_of_parameters}')
 
