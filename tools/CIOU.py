@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import math
-
+import  numpy as np
 total_area=256*456
 
 class CIOU_LOSS(nn.Module):
@@ -51,11 +51,17 @@ class CIOU_LOSS(nn.Module):
         binary classification accuracy
         total_area=256*456
         """
-        acc=(total_area-union+inter_area)/total_area
+        with torch.no_grad():
+            acc=(total_area-union+inter_area)/total_area
+            tp=inter_area
+            tn=(total_area-union)
+            fp=(area1-inter_area)
+            fn=(area2-inter_area)
+            f1=tp/(tp+0.5*(fp+fn))
 
 
         # return cious
-        return torch.sum(1 - cious), acc
+        return torch.sum(1 - cious), acc,f1,np.array([tp.sum().item(),fn.sum().item(),fp.sum().item(),tn.sum().item()]).reshape(2,2)
 
 
 if __name__=='__main__':
@@ -66,5 +72,9 @@ if __name__=='__main__':
     # bboxes1 = torch.randint(100, (8, 4))
     # bboxes2 = torch.randint(100, (8, 4))
 
-    loss = ciou_loss(bboxes1, bboxes2)
+    loss,acc,f1,matrix = ciou_loss(bboxes1, bboxes2)
     print(loss)
+    print(acc)
+    print(f1)
+    print(matrix)
+

@@ -1,17 +1,6 @@
-import math
-import os
-import time
-import pickle
 from ast import literal_eval
 
-import numpy as np
 import pandas as pd
-import torch
-from PIL import Image
-from scipy import ndimage
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-import ast
 
 from opt import *
 
@@ -34,7 +23,7 @@ def resize_bbox(row,height,width):
 def add_previous_frames(sample_time_length=5,sample_fps=3):
     # video_info_path = os.path.join(args.data_path, 'EPIC_video_info.csv')
     # video_info = pd.read_csv(video_info_path)
-    video_id_list = sorted(ids_adl)
+    video_id_list = sorted(id)
     for video_id in video_id_list:
         anno_file_path = os.path.join(args.data_path, annos_path, f'nao_{video_id}.csv')
         if os.path.exists(anno_file_path):
@@ -61,7 +50,7 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
 # conver annotation files to .csv files first
 def convert_format_to_Epic():
     items = []
-    video_id_list=ids_adl
+    video_id_list=id
 
     for video_id in sorted(video_id_list):
         img_path = os.path.join(args.data_path, frames_path, video_id)
@@ -85,5 +74,5 @@ def convert_format_to_Epic():
         annos.to_csv(anno_file_path_csv,index=False)
 
 if __name__=='__main__':
-    # convert_format_to_Epic()
-    add_previous_frames(sample_time_length=5,sample_fps=3)
+    convert_format_to_Epic()
+    add_previous_frames(sample_time_length=5,sample_fps=2)

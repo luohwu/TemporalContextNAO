@@ -12,16 +12,19 @@ from model.temporal_context_net import TemporalNaoNet
 from torch import  nn
 import pandas as pd
 import cv2
-from tools.heatmap import generate_heatmap
+from tools.comparison import generate_comparison
+import numpy as np
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
-    project_name="intent-net",
+    project_name="intent-net-with-temporal-context",
     workspace="thesisproject",
+    auto_metric_logging=False
 )
 
-SEED = 0
+experiment.log_parameters(args.__dict__)
+SEED = 40
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 
@@ -32,6 +35,9 @@ TIMESTAMP = "{0:%Y-%m-%dT%H-%M-%S/}".format(datetime.now())
 
 multi_gpu = True if torch.cuda.device_count() > 1 else False
 print(f'using {torch.cuda.device_count()} GPUs')
+print('current graphics card is:')
+os.system('lspci | grep VGA')
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -43,19 +49,27 @@ def main():
     if multi_gpu == True:
         model = nn.DataParallel(model)
     model = model.to(device)
-    train_data=NAODataset(mode='train',dataset_name='ADL')
+
+    if args.original_split:
+        train_data = NAODataset(mode='train', dataset_name=args.dataset)
+        val_data = NAODataset(mode='val', dataset_name=args.dataset)
+    else:
+        all_data = NAODataset(mode='all', dataset_name=args.dataset)
+        if args.dataset == 'ADL':
+            train_data, val_data = torch.utils.data.random_split(all_data, [1767, 450])
+        else:
+            train_data, val_data = torch.utils.data.random_split(all_data, [8589, 3000])
+
+    print(f'train dataset size: {len(train_data)}, val dataset size: {len(val_data)}')
+
     train_dataloader = DataLoader(train_data, batch_size=args.bs,
                                   shuffle=True, num_workers=2,
                                   pin_memory=True)
-    val_data = NAODataset(mode='val',dataset_name='ADL')
     val_dataloader = DataLoader(val_data,
                                 batch_size=args.bs,
                                 shuffle=True, num_workers=2,
                                 pin_memory=True)
-    # optimizer = optim.Adam(model.parameters(),
-    #                        lr=args.lr,
-    #                        betas=(0.9, 0.99),
-    #                        weight_decay=args.weight_decay)
+
     optimizer = optim.AdamW(model.parameters(),
                            lr=args.lr,
                            betas=(0.9, 0.99))
@@ -85,12 +99,11 @@ def main():
     if not os.path.exists(train_args['ckpt_path']):
         os.mkdir(train_args['ckpt_path'])
 
-    write_val = open(os.path.join(train_args['ckpt_path'], 'val.txt'), 'w')
 
     train_loss_list = []
     val_loss_list = []
     current_epoch = 0
-    epoch_save = 50 if args.dataset == 'EPIC' else 2
+    epoch_save = 50 if args.dataset == 'EPIC' else 50
     for epoch in range(current_epoch + 1, train_args['epochs'] + 1):
         print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
 
@@ -109,7 +122,7 @@ def main():
             #            checkpoint_path)
             val(val_dataloader, model, criterion, epoch, illustration=True)
 
-
+        experiment.log_metrics({"val_loss": val_loss, "train_loss": train_loss}, step=epoch)
         print(f'train loss: {train_loss:.8f} | val loss:{val_loss:.8f}')
 
 
@@ -127,7 +140,7 @@ def train(train_dataloader, model, criterion, optimizer):
         del previous_frames,current_frame
 
         # loss and acc
-        loss, _ = criterion(outputs, nao_bbox.to(device))
+        loss, _, _, _ = criterion(outputs, nao_bbox.to(device))
 
         del outputs, nao_bbox
 
@@ -139,31 +152,34 @@ def train(train_dataloader, model, criterion, optimizer):
 
     return train_losses / len(train_dataloader.dataset)
 
-
 def val(val_dataloader, model, criterion, epoch, illustration):
     model.eval()
     total_val_loss = 0
     total_acc=0
-    global_min_acc=1
-    global_max_acc=0
+    total_f1=0
+    total_conf_matrix=np.zeros([2,2])
+    global_min_acc=999
+    global_max_acc=-999
     len_dataset = len(val_dataloader.dataset)
     with torch.no_grad():
         for i, data in enumerate(val_dataloader):
-            # print(f'{i}/{loader_size}')
             previous_frames,current_frame,nao_bbox, img_path = data
             previous_frames=previous_frames.to(device)
             current_frame=current_frame.to(device)
             nao_bbox=nao_bbox.to(device)
 
             outputs = model(previous_frames,current_frame)
-            del previous_frames,current_frame
-            loss, acc = criterion(outputs, nao_bbox)
+            del current_frame
+            loss, acc,f1,conf_matrix = criterion(outputs, nao_bbox)
             total_val_loss += loss.item()
-            total_acc += torch.sum(acc).item()
+            total_f1+=f1.sum().item()
+            total_acc += acc.sum().item()
+            total_conf_matrix+=conf_matrix
+
 
             if illustration:
-                min_acc,min_index=acc.min(0)
-                max_acc,max_index=acc.max(0)
+                min_acc,min_index=f1.min(0) ###########################################
+                max_acc,max_index=f1.max(0) ##############################################
                 if global_min_acc > min_acc:
                     global_min_acc = min_acc
                     global_min_image = img_path[min_index]
@@ -177,15 +193,25 @@ def val(val_dataloader, model, criterion, epoch, illustration):
             del outputs, nao_bbox
 
     if illustration:
-        illustration_worst=generate_heatmap(global_min_image,global_min_nao_bbox,global_min_nao_bbox_gt)
-        illustration_best=generate_heatmap(global_max_image,global_max_nao_bbox,global_max_nao_bbox_gt)
-        experiment.log_image(illustration_worst,name=f'worst_{epoch}')
-        experiment.log_image(illustration_best, name=f'best_{epoch}')
+        if global_min_acc<999:
+            illustration_worst = generate_comparison(global_min_image, global_min_nao_bbox, global_min_nao_bbox_gt)
+            experiment.log_image(illustration_worst, name=f'worst_{epoch}',step=epoch)
+            experiment.log_text(f'worst_{epoch}: {global_min_image}',step=epoch)
+        if global_max_acc>-999:
+            illustration_best=generate_comparison(global_max_image, global_max_nao_bbox, global_max_nao_bbox_gt)
+            experiment.log_image(illustration_best, name=f'best_{epoch}',step=epoch)
+            experiment.log_text(f'best_{epoch}: {global_max_image}', step=epoch)
 
     val_loss_avg = total_val_loss / len_dataset
     acc_avg = total_acc / len_dataset
-    print(f'[epoch {epoch}], [val loss {val_loss_avg:5f}], [acc avg {acc_avg:5f}]')
-
+    f1_avg=total_f1/len_dataset
+    conf_matrix_avg=(total_conf_matrix/len_dataset).astype(np.int32)
+    print(f'[epoch {epoch}], [val loss {val_loss_avg:5f}], [acc avg {acc_avg:5f}],[f1 avg {f1_avg:5f}] ')
+    experiment.log_metric("val_acc_avg", acc_avg, step=epoch)
+    experiment.log_metric("val_f1_avg", f1_avg, step=epoch)
+    experiment.log_confusion_matrix(matrix=conf_matrix_avg, title=f"confusion matrix epoch {epoch}",
+                                    file_name=f"confusion_matrix_epoc_{epoch}.json",row_label="Actual Category",
+                                    column_label="Predicted Category",labels=["1","0"],step=epoch)
 
     model.train()
 

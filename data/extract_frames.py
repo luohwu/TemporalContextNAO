@@ -13,9 +13,13 @@ def make_dirs():
     for video_id in video_id_list:
         participant_id=video_id[0:3]
         video_id=video_id[3:]
-        target_dir=os.path.join(output_dir,participant_id,video_id)
-        if not os.path.exists(target_dir):
-            os.mkdir(target_dir)
+
+        target_dir1=os.path.join(output_dir,participant_id)
+        target_dir2=os.path.join(output_dir,participant_id,video_id)
+        if not os.path.exists(target_dir1):
+            os.mkdir(target_dir1)
+        if not os.path.exists(target_dir2):
+            os.mkdir(target_dir2)
 
 def move_tars():
     video_id_list=sorted(id)
@@ -121,7 +125,7 @@ if __name__=='__main__':
 
     print('main')
     #create dir for selected .tar files
-    # make_dirs()
+    make_dirs()
 
     # move only needed .tar files to our target dir
     # move_tars()

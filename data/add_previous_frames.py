@@ -1,17 +1,6 @@
-import math
-import os
-import time
-import pickle
 from ast import literal_eval
 
-import numpy as np
 import pandas as pd
-import torch
-from PIL import Image
-from scipy import ndimage
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-import ast
 
 from opt import *
 
@@ -58,4 +47,4 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
 
 
 if __name__=='__main__':
-    add_previous_frames(sample_time_length=5,sample_fps=3)
+    add_previous_frames(sample_time_length=5,sample_fps=2)

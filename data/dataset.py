@@ -110,9 +110,15 @@ def combine_all_frames(row):
 def make_sequence_dataset(mode='train',dataset_name='ADL'):
 
     #val is the same as test
-    par_video_id_list=train_video_id if mode=='train' else test_video_id
+    if mode=='all':
+        par_video_id_list=id
+    elif mode=='train':
+        par_video_id_list = train_video_id
+    else:
+        par_video_id_list=test_video_id
 
-    print(f'start load {mode} data, size: {len(par_video_id_list)}')
+
+    print(f'start load {mode} data, #videos: {len(par_video_id_list)}')
     df_items = pd.DataFrame()
     for video_id in sorted(par_video_id_list):
         anno_name = 'nao_' + video_id + '.csv'
@@ -149,7 +155,6 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
     print('finished')
     print('=============================================================')
     return df_items
-
 
 
 class NAODataset(Dataset):
