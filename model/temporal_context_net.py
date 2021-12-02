@@ -36,8 +36,8 @@ class FuseBlock(nn.Module):
 class TemporalNaoNet(nn.Module):
     def __init__(self):
         super(TemporalNaoNet,self).__init__()
-        resnet=models.resnet18(pretrained=True)
-        # resnet = models.resnet50(pretrained=True)
+        # resnet=models.resnet18(pretrained=True)
+        resnet = models.resnet50(pretrained=True)
         modules = list(resnet.children())[:-2]
         self.visual_feature = nn.Sequential(*modules)
         self.head=nn.Sequential(
@@ -46,9 +46,9 @@ class TemporalNaoNet(nn.Module):
             nn.Flatten(1),
             # resnet18 output 512 channels
             # resnet50 output 2048 channels
-            nn.Linear(512,256),
+            nn.Linear(2048,1024),
             nn.ReLU(),
-            nn.Linear(256, 4),
+            nn.Linear(1024, 4),
             nn.Sigmoid()
         )
 
@@ -72,6 +72,8 @@ class TemporalNaoNet(nn.Module):
 if __name__=='__main__':
 
     model=TemporalNaoNet()
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f'# of parameters: {total_params}')
     current_frame=torch.rand(4,3,224,224)
     output=model(current_frame)
     print(output.shape)
