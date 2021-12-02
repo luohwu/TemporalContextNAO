@@ -16,7 +16,7 @@ class FuseBlock(nn.Module):
         # channels of features extracted by ResNet20 is 2048
         # channels of temporal context is 1024
         self.cn=nn.Conv2d(1024,1,kernel_size=1,stride=1)
-        self.cn2=nn.Conv2d(2048,1,kernel_size=1,stride=1)
+        self.cn2=nn.Conv2d(512,1,kernel_size=1,stride=1)
 
     def forward(self,context_features,visual_feature):
         # [B,C,T,H, W] -> [B,T,C,H,W]
@@ -33,16 +33,17 @@ class FuseBlock(nn.Module):
 
 
 
-class TemporalNaoNet(nn.Module):
+config = 'configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
+checkpoint = 'checkpoints/swin_base_patch244_window1677_sthv2.pth'
+
+class IntentNet(nn.Module):
     def __init__(self,time_length):
-        super(TemporalNaoNet,self).__init__()
+        super(IntentNet, self).__init__()
         self.temporal_length=time_length
-        config = 'configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
-        checkpoint = 'checkpoints/swin_base_patch244_window1677_sthv2.pth'
         cfg = Config.fromfile(config)
         model = build_model(cfg.model, train_cfg=None, test_cfg=cfg.get('test_cfg'))
         load_checkpoint(model, checkpoint, map_location='cpu')
-        resnet = models.resnet50(pretrained=True)
+        resnet = models.resnet18(pretrained=True)
         modules = list(resnet.children())[:-2]
         self.visual_feature = nn.Sequential(*modules)
 
@@ -93,10 +94,14 @@ if __name__=='__main__':
     # output=resnet(img)
     # print(output.shape)
 
+    config = '../configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
+    checkpoint = '../checkpoints/swin_base_patch244_window1677_sthv2.pth'
+    model=IntentNet(time_length=10)
+    num_params_temporal_context_extractor=sum(p.numel() for p in model.temporal_context_extractor.parameters())
+    total_params = sum(p.numel() for p in model.parameters())
 
-    model=TemporalNaoNet(time_length=10)
-    total_params = sum(p.numel() for p in model.parameters())-sum(p.numel() for p in model.temporal_context_extractor.parameters())
-    print(f'total # of parameters: {total_params}')  # 参数总数: 19341058
+    # 99K and 11K, so the temporal feature extractor has more then 80K parameters
+    print(f'total # of parameters: {total_params}, total # of parameters without temporal feature: {total_params-num_params_temporal_context_extractor}')
     previous_frames=torch.rand(4, 3, 10, 224, 224)
     current_frame=torch.rand(4,3,224,224)
     output=model(previous_frames,current_frame)

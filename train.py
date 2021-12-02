@@ -8,7 +8,7 @@ from data.dataset import NAODataset
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS
-from model.temporal_context_net import TemporalNaoNet
+from model.temporal_context_net import IntentNet
 from torch import  nn
 import pandas as pd
 import cv2
@@ -42,7 +42,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    model=TemporalNaoNet(time_length=10)
+    model=IntentNet(time_length=10)
     for p in model.temporal_context_extractor.parameters():
         p.requires_grad = False
 
@@ -84,15 +84,7 @@ def main():
     Heatmap version
     """
 
-    # if args.dataset == 'EPIC':
-    #     # class_weights = torch.FloatTensor([1, 11.2]).cuda(args.device_ids[0])
-    #     class_weights = torch.FloatTensor([1, 11.2]).to(device)
-    # else:
-    #     # class_weights = torch.FloatTensor([1, 9.35]).cuda(args.device_ids[0])
-    #     class_weights = torch.FloatTensor([1, 9.35]).to(device)
-    # criterion = nn.CrossEntropyLoss(class_weights)
     criterion = CIOU_LOSS()
-    # criterion = FocalLoss()
 
     train_args['ckpt_path'] = os.path.join(train_args['exp_path'],args.dataset,
                                            exp_name, 'ckpts/')

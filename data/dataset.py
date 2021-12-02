@@ -100,12 +100,6 @@ def check_data_annos(args):
     print('================================================================')
     return df_items
 
-def combine_all_frames(row):
-    previous_frames=row['previous_frames']
-    previous_frames.append(row['frame'])
-    # return (row['previous_frames']).append(row['frame'])
-    # return (row['previous_frames'])
-    return previous_frames
 
 def make_sequence_dataset(mode='train',dataset_name='ADL'):
 

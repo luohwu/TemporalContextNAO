@@ -24,7 +24,7 @@ parser.add_argument('--img_resize', default=[224, 224],
 parser.add_argument('--normalize', default=True, help='subtract mean value')
 parser.add_argument('--crop', default=False, help='')
 
-parser.add_argument('--debug', default=False, help='debug')
+parser.add_argument('--debug', default=False, action="store_true", help='debug')
 
 parser.add_argument('--bs', default=32, type=int, help='batch size')
 parser.add_argument('--epochs', default=1000, type=int, help='Number of epochs')
