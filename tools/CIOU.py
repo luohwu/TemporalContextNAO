@@ -2,7 +2,8 @@ import torch
 from torch import nn
 import math
 import  numpy as np
-total_area=256*456
+# total_area=256*456
+total_area=1
 
 class CIOU_LOSS(nn.Module):
     def __init__(self):

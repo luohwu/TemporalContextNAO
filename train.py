@@ -22,7 +22,7 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
-    project_name="intent-net",
+    project_name="comparison-experiment",
     workspace="thesisproject",
     auto_metric_logging=False
 )

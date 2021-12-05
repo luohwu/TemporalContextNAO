@@ -193,8 +193,13 @@ class NAODataset(Dataset):
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
         current_frame=self.transform(current_frame)
+        nao_bbox=df_item.nao_bbox
+        nao_bbox[0] = nao_bbox[0] / 456.
+        nao_bbox[2] = nao_bbox[2] / 456.
+        nao_bbox[1] = nao_bbox[1] / 256.
+        nao_bbox[3] = nao_bbox[3] / 256.
 
-        return current_frame, torch.tensor(df_item.nao_bbox),current_frame_path
+        return current_frame, torch.tensor(nao_bbox),current_frame_path
 
     def __len__(self):
         return self.data.shape[0]

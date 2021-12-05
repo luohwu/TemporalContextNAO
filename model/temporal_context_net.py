@@ -49,7 +49,7 @@ class TemporalNaoNet(nn.Module):
             nn.Linear(2048,1024),
             nn.ReLU(),
             nn.Linear(1024, 4),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
 
 
@@ -63,7 +63,7 @@ class TemporalNaoNet(nn.Module):
         # print(f'visual feature shape: {visual_feature.shape}')
         head=self.head(visual_feature)
         # print(f'head shape: {head.shape}')
-        return head*torch.tensor([456,256,456,256]).to(device)
+        return torch.clamp(head,min=0,max=1)
 
 
 
