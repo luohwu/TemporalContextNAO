@@ -47,6 +47,8 @@ if args.dataset == 'ADL':
     val_video_id=test_video_id = ['P_05', 'P_04', 'P_07', 'P_10', 'P_16']
     train_video_id = id - set(val_video_id)
     test_video_id = val_video_id
+    train_video_id={'P_01'}
+    val_video_id=test_video_id=id-train_video_id
 
     args.data_path = os.path.join(args.data_path,'ADL')
     annos_path = 'nao_annotations'

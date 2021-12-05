@@ -22,7 +22,7 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
-    project_name="intent-net",
+    project_name="comparison-experiment",
     workspace="thesisproject",
     auto_metric_logging=False
 )
@@ -114,8 +114,8 @@ def main():
         print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
 
         val_loss = val(val_dataloader, model, criterion, epoch,illustration=False)
-        train_loss = train(train_dataloader, model, criterion, optimizer)
-        scheduler.step(val_loss)
+        train_loss = train(train_dataloader, model, criterion, optimizer,epoch)
+        scheduler.step(train_loss)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
         if epoch % epoch_save == 0:
@@ -134,8 +134,11 @@ def main():
         print(f'train loss: {train_loss:.8f} | val loss:{val_loss:.8f}')
 
 
-def train(train_dataloader, model, criterion, optimizer):
+def train(train_dataloader, model, criterion, optimizer,epoch):
     train_losses = 0.
+    total_acc=0
+    total_f1=0
+    len_dataset=len(train_dataloader.dataset)
 
     for i, data in enumerate(train_dataloader, start=1):
         current_frame, nao_bbox, img_path = data
@@ -147,7 +150,9 @@ def train(train_dataloader, model, criterion, optimizer):
         del current_frame
 
         # loss and acc
-        loss, _,_,_ = criterion(outputs, nao_bbox.to(device))
+        loss, acc, f1, conf_matrix = criterion(outputs, nao_bbox)
+        total_f1 += f1.sum().item()
+        total_acc += acc.sum().item()
 
         del outputs, nao_bbox
 
@@ -156,8 +161,13 @@ def train(train_dataloader, model, criterion, optimizer):
         loss.backward()
         optimizer.step()
         train_losses += loss.item()
+    acc_avg = total_acc / len_dataset
+    f1_avg=total_f1/len_dataset
+    experiment.log_metric("train acc avg", acc_avg, step=epoch)
+    experiment.log_metric("train f1 avg", f1_avg, step=epoch)
 
-    return train_losses / len(train_dataloader.dataset)
+
+    return train_losses / len_dataset
 
 
 def val(val_dataloader, model, criterion, epoch, illustration):
@@ -214,8 +224,8 @@ def val(val_dataloader, model, criterion, epoch, illustration):
     f1_avg=total_f1/len_dataset
     conf_matrix_avg=(total_conf_matrix/len_dataset).astype(np.int32)
     print(f'[epoch {epoch}], [val loss {val_loss_avg:5f}], [acc avg {acc_avg:5f}],[f1 avg {f1_avg:5f}] ')
-    experiment.log_metric("val_acc_avg", acc_avg, step=epoch)
-    experiment.log_metric("val_f1_avg", f1_avg, step=epoch)
+    experiment.log_metric("test acc avg", acc_avg, step=epoch)
+    experiment.log_metric("test f1 avg", f1_avg, step=epoch)
     experiment.log_confusion_matrix(matrix=conf_matrix_avg, title=f"confusion matrix epoch {epoch}",
                                     file_name=f"confusion_matrix_epoc_{epoch}.json",row_label="Actual Category",
                                     column_label="Predicted Category",labels=["1","0"],step=epoch)
