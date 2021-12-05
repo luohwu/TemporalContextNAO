@@ -27,7 +27,7 @@ experiment = Experiment(
     auto_metric_logging=False
 )
 experiment.log_parameters(args.__dict__)
-SEED = 40
+SEED = args.seed
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 
