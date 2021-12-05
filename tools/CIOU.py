@@ -64,6 +64,7 @@ class CIOU_LOSS(nn.Module):
         return torch.sum(1 - cious), acc,f1,np.array([tp.sum().item(),fn.sum().item(),fp.sum().item(),tn.sum().item()]).reshape(2,2)
 
 
+
 if __name__=='__main__':
     ciou_loss = CIOU_LOSS()
 
