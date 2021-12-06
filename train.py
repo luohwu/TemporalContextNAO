@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from data.dataset import NAODataset
 from opt import *
 import tarfile
-from tools.CIOU import CIOU_LOSS
+from tools.CIOU import CIOU_LOSS,CIOU
 from model.temporal_context_net import TemporalNaoNet
 from torch import  nn
 import pandas as pd
@@ -98,7 +98,9 @@ def main():
     #     class_weights = torch.FloatTensor([1, 9.35]).to(device)
     # criterion = nn.CrossEntropyLoss(class_weights)
     criterion = CIOU_LOSS()
+    # criterion=torch.nn.MSELoss()
     # criterion = FocalLoss()
+    eval_metrics=CIOU()
 
     train_args['ckpt_path'] = os.path.join(train_args['exp_path'],args.dataset,
                                            exp_name, 'ckpts/')
@@ -113,7 +115,7 @@ def main():
     for epoch in range(current_epoch + 1, train_args['epochs'] + 1):
         print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
 
-        val_loss = val(val_dataloader, model, criterion, epoch,illustration=False)
+        val_loss = val(val_dataloader, model, criterion, epoch,illustration=False,eval_metrics=eval_metrics)
         train_loss = train(train_dataloader, model, criterion, optimizer)
         scheduler.step(val_loss)
         train_loss_list.append(train_loss)
@@ -126,7 +128,7 @@ def main():
             #             'optimizer_state_dict': optimizer.state_dict()
             #             },
             #            checkpoint_path)
-            val(val_dataloader, model, criterion, epoch, illustration=True)
+            val(val_dataloader, model, criterion, epoch, illustration=True,eval_metrics=eval_metrics)
         # experiment.log_metric("train_loss", train_loss, step=epoch)
         # experiment.log_metric("val_loss", val_loss, step=epoch)
         experiment.log_metrics({"val_loss": val_loss, "train_loss":train_loss}, step=epoch)
@@ -147,20 +149,22 @@ def train(train_dataloader, model, criterion, optimizer):
         del current_frame
 
         # loss and acc
-        loss, _,_,_ = criterion(outputs, nao_bbox.to(device))
+        loss,_,_,_= criterion(outputs, nao_bbox.to(device))
 
         del outputs, nao_bbox
 
         # backward
         optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.05)
+
         optimizer.step()
         train_losses += loss.item()
 
     return train_losses / len(train_dataloader.dataset)
 
 
-def val(val_dataloader, model, criterion, epoch, illustration):
+def val(val_dataloader, model, criterion, epoch, illustration,eval_metrics):
     model.eval()
     total_val_loss = 0
     total_acc=0
@@ -176,8 +180,10 @@ def val(val_dataloader, model, criterion, epoch, illustration):
             nao_bbox=nao_bbox.to(device)
 
             outputs = model(current_frame)
+
             del current_frame
-            loss, acc,f1,conf_matrix = criterion(outputs, nao_bbox)
+            loss,acc, f1, conf_matrix= criterion(outputs, nao_bbox)
+            # acc, f1, conf_matrix=eval_metrics(outputs,nao_bbox)
             total_val_loss += loss.item()
             total_f1+=f1.sum().item()
             total_acc += acc.sum().item()
@@ -200,11 +206,16 @@ def val(val_dataloader, model, criterion, epoch, illustration):
             del outputs, nao_bbox
 
     if illustration:
+        original_scale = torch.tensor([456, 256, 456, 256]).to(device)
         if global_min_acc<999:
+            global_min_nao_bbox = global_min_nao_bbox * original_scale
+            global_min_nao_bbox_gt = global_min_nao_bbox_gt * original_scale
             illustration_worst = generate_comparison(global_min_image, global_min_nao_bbox, global_min_nao_bbox_gt)
             experiment.log_image(illustration_worst, name=f'worst_{epoch}',step=epoch)
             experiment.log_text(f'worst_{epoch}: {global_min_image}',step=epoch)
         if global_max_acc>-999:
+            global_max_nao_bbox = global_max_nao_bbox * original_scale
+            global_max_nao_bbox_gt = global_max_nao_bbox_gt * original_scale
             illustration_best=generate_comparison(global_max_image, global_max_nao_bbox, global_max_nao_bbox_gt)
             experiment.log_image(illustration_best, name=f'best_{epoch}',step=epoch)
             experiment.log_text(f'best_{epoch}: {global_max_image}', step=epoch)

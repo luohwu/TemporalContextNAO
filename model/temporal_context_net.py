@@ -49,7 +49,6 @@ class TemporalNaoNet(nn.Module):
             nn.Linear(2048,1024),
             nn.ReLU(),
             nn.Linear(1024, 4),
-            # nn.Sigmoid()
         )
 
 
@@ -74,6 +73,13 @@ if __name__=='__main__':
     model=TemporalNaoNet()
     total_params = sum(p.numel() for p in model.parameters())
     print(f'# of parameters: {total_params}')
-    current_frame=torch.rand(4,3,224,224)
+    current_frame=torch.rand(2,3,224,224)
+    targets=torch.rand((2,4))
+    loss_fn=torch.nn.MSELoss()
+    print(f'target: {targets}')
     output=model(current_frame)
+    loss=loss_fn(output,targets)
+    loss.backward()
+
+    print(output)
     print(output.shape)

@@ -199,6 +199,7 @@ class NAODataset(Dataset):
         nao_bbox[1] = nao_bbox[1] / 256.
         nao_bbox[3] = nao_bbox[3] / 256.
 
+        assert np.all(np.isfinite(nao_bbox)), "infinite bbox"
         return current_frame, torch.tensor(nao_bbox),current_frame_path
 
     def __len__(self):
