@@ -11,101 +11,95 @@ from opt import *
 
 import numpy as np
 
-def generate_pseudo_track_id(annos):
-    video_id = annos.id[0]
-    annos.loc[:, 'pseudo_track_id'] = -1
-    track_id_ = 0
-    for label in annos.label.unique():
-        anno_ = annos[annos['label'] == label]
-        if anno_.shape[0] <= 3:
-            # print(label)
-            annos.loc[annos['label'] == label, 'pseudo_track_id'] = \
-                video_id + '_' + str(track_id_).zfill(3)
-            track_id_ += 1
-        else:
-            # print(f'{label}: {anno_.shape[0]}')
-            # frame_1 = anno_.iloc[0, 0]
-            for j, frame in enumerate(anno_.frame):
-                if j == 0:
-                    annos.loc[anno_.index[0], 'pseudo_track_id'] = \
-                        video_id + '_' + str(track_id_).zfill(3)
-                else:
-                    if (frame - anno_.iloc[j - 1, 0]) < 90:
-                        annos.loc[anno_.index[j], 'pseudo_track_id'] = \
-                            video_id + '_' + str(track_id_).zfill(3)
-                    else:
-                        track_id_ += 1
-                        annos.loc[anno_.index[j], 'pseudo_track_id'] = \
-                            video_id + '_' + str(track_id_).zfill(3)
-            track_id_ += 1
+# def generate_pseudo_track_id(annos):
+#     video_id = annos.id[0]
+#     annos.loc[:, 'pseudo_track_id'] = -1
+#     track_id_ = 0
+#     for label in annos.label.unique():
+#         anno_ = annos[annos['label'] == label]
+#         if anno_.shape[0] <= 3:
+#             # print(label)
+#             annos.loc[annos['label'] == label, 'pseudo_track_id'] = \
+#                 video_id + '_' + str(track_id_).zfill(3)
+#             track_id_ += 1
+#         else:
+#             # print(f'{label}: {anno_.shape[0]}')
+#             # frame_1 = anno_.iloc[0, 0]
+#             for j, frame in enumerate(anno_.frame):
+#                 if j == 0:
+#                     annos.loc[anno_.index[0], 'pseudo_track_id'] = \
+#                         video_id + '_' + str(track_id_).zfill(3)
+#                 else:
+#                     if (frame - anno_.iloc[j - 1, 0]) < 90:
+#                         annos.loc[anno_.index[j], 'pseudo_track_id'] = \
+#                             video_id + '_' + str(track_id_).zfill(3)
+#                     else:
+#                         track_id_ += 1
+#                         annos.loc[anno_.index[j], 'pseudo_track_id'] = \
+#                             video_id + '_' + str(track_id_).zfill(3)
+#             track_id_ += 1
+
+#
+# def check_pseudo_track_id(annos):
+#     video_id = annos.id[0]
+#     annos.loc[:, 'pseudo_track_id'] = -1
+#     track_id_ = 0
+#     for label in annos.label.unique():
+#         anno_ = annos[annos['label'] == label]
+#         if anno_.shape[0] <= 3:
+#             # print(label)
+#             annos.loc[annos['label'] == label, 'pseudo_track_id'] = track_id_
+#             track_id_ += 1
+#         else:
+#             print(f'{label}: {anno_.shape[0]}')
+#             # frame_1 = anno_.iloc[0, 0]
+#             for j, frame in enumerate(sorted(anno_.frame)):
+#                 if j == 0:
+#                     annos.loc[anno_.index[0], 'pseudo_track_id'] = track_id_
+#                 else:
+#                     if (frame - anno_.iloc[j - 1, 0]) < 90:
+#                         annos.loc[anno_.index[j], 'pseudo_track_id'] = track_id_
+#                     else:
+#                         track_id_ += 1
+#                         annos.loc[anno_.index[j], 'pseudo_track_id'] = track_id_
+#             track_id_ += 1
 
 
-def check_pseudo_track_id(annos):
-    video_id = annos.id[0]
-    annos.loc[:, 'pseudo_track_id'] = -1
-    track_id_ = 0
-    for label in annos.label.unique():
-        anno_ = annos[annos['label'] == label]
-        if anno_.shape[0] <= 3:
-            # print(label)
-            annos.loc[annos['label'] == label, 'pseudo_track_id'] = track_id_
-            track_id_ += 1
-        else:
-            print(f'{label}: {anno_.shape[0]}')
-            # frame_1 = anno_.iloc[0, 0]
-            for j, frame in enumerate(sorted(anno_.frame)):
-                if j == 0:
-                    annos.loc[anno_.index[0], 'pseudo_track_id'] = track_id_
-                else:
-                    if (frame - anno_.iloc[j - 1, 0]) < 90:
-                        annos.loc[anno_.index[j], 'pseudo_track_id'] = track_id_
-                    else:
-                        track_id_ += 1
-                        annos.loc[anno_.index[j], 'pseudo_track_id'] = track_id_
-            track_id_ += 1
+# def check_data_annos(args):
+#     df_items = pd.DataFrame(columns=['img_file', 'pseudo_track_id',
+#                                      'nao_bbox', 'label'])
+#
+#     for video_id in sorted(train_video_id):
+#         start = time.process_time()
+#         img_path = os.path.join(args.data_path, frames_path,
+#                                 str(video_id)[:3], str(video_id)[3:])
+#
+#         anno_name = 'nao_' + video_id + '.csv'
+#         anno_path = os.path.join(args.data_path, annos_path, anno_name)
+#         annos = pd.read_csv(anno_path, converters={"nao_bbox": literal_eval})
+#
+#         check_pseudo_track_id(annos)  # 生成track_id
+#
+#         annos.insert(loc=5, column='img_file', value=0)
+#         for index in annos.index:
+#             img_file = img_path + '/' + str(annos.loc[index, 'frame']).zfill(
+#                 10) + '.jpg'
+#             annos.loc[index, 'img_file'] = img_file
+#
+#         annos_df = pd.DataFrame(annos, columns=['img_file', 'pseudo_track_id',
+#                                                 'nao_bbox', 'label'])
+#         df_items = df_items.append(annos_df, ignore_index=False)
+#
+#         end = time.process_time()
+#         print(f'finished video {video_id}, time is {end - start}')
+#
+#     # 生成sequence data
+#     for idx, pt_id in enumerate(sorted(df_items.pseudo_track_id.unique())):
+#         df_items.loc[df_items.pseudo_track_id == pt_id, 'bs_idx'] = str(idx)
+#
+#     print('================================================================')
+#     return df_items
 
-
-def check_data_annos(args):
-    df_items = pd.DataFrame(columns=['img_file', 'pseudo_track_id',
-                                     'nao_bbox', 'label'])
-
-    for video_id in sorted(train_video_id):
-        start = time.process_time()
-        img_path = os.path.join(args.data_path, frames_path,
-                                str(video_id)[:3], str(video_id)[3:])
-
-        anno_name = 'nao_' + video_id + '.csv'
-        anno_path = os.path.join(args.data_path, annos_path, anno_name)
-        annos = pd.read_csv(anno_path, converters={"nao_bbox": literal_eval})
-
-        check_pseudo_track_id(annos)  # 生成track_id
-
-        annos.insert(loc=5, column='img_file', value=0)
-        for index in annos.index:
-            img_file = img_path + '/' + str(annos.loc[index, 'frame']).zfill(
-                10) + '.jpg'
-            annos.loc[index, 'img_file'] = img_file
-
-        annos_df = pd.DataFrame(annos, columns=['img_file', 'pseudo_track_id',
-                                                'nao_bbox', 'label'])
-        df_items = df_items.append(annos_df, ignore_index=False)
-
-        end = time.process_time()
-        print(f'finished video {video_id}, time is {end - start}')
-
-    # 生成sequence data
-    for idx, pt_id in enumerate(sorted(df_items.pseudo_track_id.unique())):
-        df_items.loc[df_items.pseudo_track_id == pt_id, 'bs_idx'] = str(idx)
-
-    print('================================================================')
-    return df_items
-
-def combine_all_frames(row):
-    previous_frames=row['previous_frames']
-    previous_frames.append(row['frame'])
-    # return (row['previous_frames']).append(row['frame'])
-    # return (row['previous_frames'])
-    return previous_frames
 
 def make_sequence_dataset(mode='train',dataset_name='ADL'):
 
@@ -140,16 +134,16 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
             annos['img_path']=img_path
 
             if not annos.empty:
-                generate_pseudo_track_id(annos)  # 生成track_id
+                # generate_pseudo_track_id(annos)  # 生成track_id
 
 
-                annos_subset=annos[['img_path',  'pseudo_track_id',
+                annos_subset=annos[['img_path',
                                                  'nao_bbox_resized', 'label','previous_frames','frame']]
                 df_items = df_items.append(annos_subset)
 
 
-    for idx, pt_id in enumerate(sorted(df_items.pseudo_track_id.unique())):
-        df_items.loc[df_items.pseudo_track_id == pt_id, 'bs_idx'] = str(idx)
+    # for idx, pt_id in enumerate(sorted(df_items.pseudo_track_id.unique())):
+    #     df_items.loc[df_items.pseudo_track_id == pt_id, 'bs_idx'] = str(idx)
 
     df_items = df_items.rename(columns={'nao_bbox_resized': 'nao_bbox'})
     print('finished')
