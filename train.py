@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import torch.cuda
 from torch import optim
 from torch.utils.data import DataLoader
-from data.dataset import NAODataset
+from data.dataset import *
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS
@@ -63,22 +63,14 @@ def main():
         model = nn.DataParallel(model)
     model = model.to(device)
 
-    if args.original_split:
-        train_data = NAODataset(mode='train', dataset_name=args.dataset)
-        val_data = NAODataset(mode='val', dataset_name=args.dataset)
-    else:
-        all_data = NAODataset(mode='all', dataset_name=args.dataset)
-        if args.dataset == 'ADL':
-            train_data, val_data = torch.utils.data.random_split(all_data, [1767, 450])
-        else:
-            train_data, val_data = torch.utils.data.random_split(all_data, [8589, 3000])
+    train_dataset, val_dataset = ini_datasets(dataset_name=args.dataset,original_split=args.original_split)
 
-    print(f'train dataset size: {len(train_data)}, val dataset size: {len(val_data)}')
+    print(f'train dataset size: {len(train_dataset)}, val dataset size: {len(val_dataset)}')
 
-    train_dataloader = DataLoader(train_data, batch_size=args.bs,
+    train_dataloader = DataLoader(train_dataset, batch_size=args.bs,
                                   shuffle=True, num_workers=4,
                                   pin_memory=True)
-    val_dataloader = DataLoader(val_data,
+    val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.bs,
                                 shuffle=True, num_workers=4,
                                 pin_memory=True)

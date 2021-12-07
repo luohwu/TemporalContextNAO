@@ -61,16 +61,13 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
 
 
 class NAODataset(Dataset):
-    def __init__(self, mode='train',dataset_name='ADL'):
-        self.args = args
+    def __init__(self,data, mode='train'):
+        self.mode=mode
         self.crop = transforms.RandomCrop((args.img_resize[0],
                                            args.img_resize[1]))
         self.transform_label = transforms.ToTensor()
 
-        self.data = make_sequence_dataset(mode,dataset_name)
-        self.dataset_name=dataset_name
-
-
+        self.data = data
         self.data = self.data.sample(frac=1).reset_index(drop=True)
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
@@ -88,7 +85,7 @@ class NAODataset(Dataset):
         ])
 
     def __getitem__(self, item):
-        rand_num=torch.rand(1)
+        rand_num=torch.rand(1) if self.mode=='train' else 0
         df_item = self.data.iloc[item, :]
         nao_bbox = df_item.nao_bbox
         # print(f'original bbox: {nao_bbox}')
@@ -127,10 +124,24 @@ class NAODataset(Dataset):
 
 
 
+def ini_datasets(dataset_name='ADL',original_split=False):
+    if original_split==False:
+        data = make_sequence_dataset('all', dataset_name)
+        data=data.iloc[np.random.permutation(len(data))]
+        if dataset_name=='ADL':
+            train_data,val_data=data.iloc[0:1767],data.iloc[1767:]
+        else:
+            train_data,val_data=data.iloc[0:8589],data.iloc[8589:]
+    else:
+        train_data, val_data = make_sequence_dataset('train', dataset_name),make_sequence_dataset('val', dataset_name)
+
+    return NAODataset(mode='train', data=train_data), NAODataset(mode='val', data=val_data)
+
 
 
 if __name__ == '__main__':
-    train_dataset = NAODataset(mode='train',dataset_name=args.dataset)
+    train_data,val_data=ini_datasets(dataset_name='ADL')
+    train_dataset = NAODataset(mode='val',data=train_data)
     train_dataset.data.to_csv('/media/luohwu/T7/dataset/EPIC/test.csv',index=False)
     train_dataloader = DataLoader(train_dataset, batch_size=4,
                                   num_workers=8, shuffle=False,pin_memory=True)
@@ -138,8 +149,8 @@ if __name__ == '__main__':
     start = time.time()
     for data in train_dataloader:
         previous_frames,current_frame,nao_bbox,current_frame_path=data
-        print(f'previous frames shape: {previous_frames.shape}')
-        print(f'current_frame shape: {current_frame.shape}')
+        # print(f'previous frames shape: {previous_frames.shape}')
+        # print(f'current_frame shape: {current_frame.shape}')
         print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
 
         nao_bbox_shape=nao_bbox.shape
