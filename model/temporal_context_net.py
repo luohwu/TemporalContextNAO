@@ -113,7 +113,7 @@ class IntentNetFuse(nn.Module):
         self.head=nn.Sequential(
             # nn.Linear(1024,512),
             # nn.ReLU(),
-            nn.Linear(512,128),
+            nn.Linear(512,256),
             nn.ReLU(),
             # nn.BatchNorm1d(num_features=256),
             # nn.ReLU(),
@@ -122,7 +122,7 @@ class IntentNetFuse(nn.Module):
             # nn.BatchNorm1d(num_features=128),
             # nn.ReLU(),
             # nn.Dropout(0.5),
-            nn.Linear(128,4),
+            nn.Linear(256,4),
             nn.Sigmoid()
         )
 

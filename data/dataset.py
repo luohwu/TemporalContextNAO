@@ -68,7 +68,7 @@ class NAODataset(Dataset):
         self.transform_label = transforms.ToTensor()
 
         self.data = data
-        self.data = self.data.sample(frac=1).reset_index(drop=True)
+        # self.data = self.data.sample(frac=1).reset_index(drop=True)
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose([  # [h, w]
@@ -97,7 +97,7 @@ class NAODataset(Dataset):
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             img=Image.open(os.path.join(img_dir,image_name))
-            if rand_num > 0.7:
+            if rand_num > 0.5:
                 img = ImageOps.mirror(img)
             img=self.transform_previous_frames(img)
             previous_frames.append(img)
@@ -105,7 +105,7 @@ class NAODataset(Dataset):
         previous_frames=previous_frames.transpose(0,1)
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
-        if rand_num>0.7:
+        if rand_num>0.5:
             current_frame = ImageOps.mirror(current_frame)
             temp=nao_bbox[0]
             nao_bbox[0]=455-nao_bbox[2]
@@ -129,7 +129,8 @@ def ini_datasets(dataset_name='ADL',original_split=False):
         data = make_sequence_dataset('all', dataset_name)
         data=data.iloc[np.random.permutation(len(data))]
         if dataset_name=='ADL':
-            train_data,val_data=data.iloc[0:1767],data.iloc[1767:]
+            # train_data,val_data=data.iloc[0:1767],data.iloc[1767:]
+            train_data,val_data=data.iloc[0:1],data.iloc[1767:]
         else:
             train_data,val_data=data.iloc[0:8589],data.iloc[8589:]
     else:
@@ -140,35 +141,38 @@ def ini_datasets(dataset_name='ADL',original_split=False):
 
 
 if __name__ == '__main__':
-    train_data,val_data=ini_datasets(dataset_name='ADL')
-    train_dataset = NAODataset(mode='val',data=train_data)
-    train_dataset.data.to_csv('/media/luohwu/T7/dataset/EPIC/test.csv',index=False)
-    train_dataloader = DataLoader(train_dataset, batch_size=4,
+    train_dataset,val_dataset=ini_datasets(dataset_name='ADL',original_split=False)
+    # train_dataset = NAODataset(mode='train',data=train_data)
+    print(train_dataset.data.head())
+    # train_dataset.data.to_csv('/media/luohwu/T7/dataset/EPIC/test.csv')
+    train_dataloader = DataLoader(train_dataset, batch_size=1,
                                   num_workers=8, shuffle=False,pin_memory=True)
     print(f'start traversing the dataloader')
     start = time.time()
-    for data in train_dataloader:
-        previous_frames,current_frame,nao_bbox,current_frame_path=data
-        # print(f'previous frames shape: {previous_frames.shape}')
-        # print(f'current_frame shape: {current_frame.shape}')
-        print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
+    for epoch in range(10):
 
-        nao_bbox_shape=nao_bbox.shape
+        for data in train_dataloader:
+            previous_frames,current_frame,nao_bbox,current_frame_path=data
+            # print(f'previous frames shape: {previous_frames.shape}')
+            # print(f'current_frame shape: {current_frame.shape}')
+            print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
 
-        """"
-        test data and annotations
-        need to undo-resize first !!!
-        """
-        current_frame_example=current_frame[0].permute(1,2,0).numpy()
-        current_frame_example*=255
-        cv2.imwrite('test.jpg',current_frame_example)
-        cv2_image=cv2.imread('test.jpg')
-        cv2_image=cv2.cvtColor(cv2_image,cv2.COLOR_BGR2RGB)
-        nao_bbox_example=nao_bbox[0]
-        cv2.rectangle(cv2_image,(nao_bbox_example[0],nao_bbox_example[1]),(nao_bbox_example[2],nao_bbox_example[3]),(255,0,0),3)
-        #
-        cv2.imshow('example',cv2_image)
-        cv2.waitKey(0)
+            nao_bbox_shape=nao_bbox.shape
+
+            """"
+            test data and annotations
+            need to undo-resize first !!!
+            """
+            current_frame_example=current_frame[0].permute(1,2,0).numpy()
+            current_frame_example*=255
+            cv2.imwrite('test.jpg',current_frame_example)
+            cv2_image=cv2.imread('test.jpg')
+            cv2_image=cv2.cvtColor(cv2_image,cv2.COLOR_BGR2RGB)
+            nao_bbox_example=nao_bbox[0]
+            cv2.rectangle(cv2_image,(nao_bbox_example[0],nao_bbox_example[1]),(nao_bbox_example[2],nao_bbox_example[3]),(255,0,0),3)
+            #
+            cv2.imshow('example',cv2_image)
+            cv2.waitKey(0)
 
     end = time.time()
     print(f'used time: {end-start}')
