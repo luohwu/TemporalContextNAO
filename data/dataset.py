@@ -68,7 +68,7 @@ class NAODataset(Dataset):
         self.transform_label = transforms.ToTensor()
 
         self.data = data
-        # self.data = self.data.sample(frac=1).reset_index(drop=True)
+        self.data = self.data.sample(frac=1).reset_index(drop=True)
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose([  # [h, w]
@@ -97,15 +97,16 @@ class NAODataset(Dataset):
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             img=Image.open(os.path.join(img_dir,image_name))
-            if rand_num > 0.5:
+            if rand_num > 0.65:
                 img = ImageOps.mirror(img)
             img=self.transform_previous_frames(img)
             previous_frames.append(img)
+            del img
         previous_frames=torch.stack(previous_frames)
         previous_frames=previous_frames.transpose(0,1)
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
-        if rand_num>0.5:
+        if rand_num>0.65:
             current_frame = ImageOps.mirror(current_frame)
             temp=nao_bbox[0]
             nao_bbox[0]=455-nao_bbox[2]
@@ -113,10 +114,11 @@ class NAODataset(Dataset):
 
         # print(f'new bbox: {nao_bbox}')
 
-        current_frame=self.transform(current_frame)
+        current_frame_tensor=self.transform(current_frame)
+        del current_frame
 
 
-        return previous_frames,current_frame, torch.tensor(nao_bbox),current_frame_path
+        return previous_frames,current_frame_tensor, torch.tensor(nao_bbox),current_frame_path
 
     def __len__(self):
         return self.data.shape[0]
@@ -127,10 +129,10 @@ class NAODataset(Dataset):
 def ini_datasets(dataset_name='ADL',original_split=False):
     if original_split==False:
         data = make_sequence_dataset('all', dataset_name)
-        data=data.iloc[np.random.permutation(len(data))]
+        data=data.iloc[np.random.RandomState(seed=args.seed).permutation(len(data))]
         if dataset_name=='ADL':
             # train_data,val_data=data.iloc[0:1767],data.iloc[1767:]
-            train_data,val_data=data.iloc[0:1],data.iloc[1767:]
+            train_data,val_data=data.iloc[0:1767],data.iloc[1767:]
         else:
             train_data,val_data=data.iloc[0:8589],data.iloc[8589:]
     else:
