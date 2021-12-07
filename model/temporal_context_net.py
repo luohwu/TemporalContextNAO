@@ -4,6 +4,7 @@ from torchvision import models
 from mmcv import Config
 from mmaction.models import build_model
 from mmcv.runner import load_checkpoint
+from torch.nn import  init
 
 class FuseBlock(nn.Module):
     def __init__(self,time_length):
@@ -35,10 +36,179 @@ class FuseBlock(nn.Module):
 
 config = 'configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
 checkpoint = 'checkpoints/swin_base_patch244_window1677_sthv2.pth'
+device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class IntentNet(nn.Module):
+    def __init__(self):
+        super(IntentNet,self).__init__()
+        # resnet=models.resnet18(pretrained=True)
+        resnet = models.resnet18(pretrained=True)
+        modules = list(resnet.children())[:-2]
+        self.visual_feature = nn.Sequential(*modules)
+        self.visual_neck=nn.Sequential(
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(1)
+        )
+
+        resnet3d=models.video.mc3_18(pretrained=True)
+        modules=list(resnet3d.children())[:-1]
+        self.temporal_context=nn.Sequential(*modules)
+        self.temporal_context_neck=nn.Sequential(
+            nn.Flatten(1)
+        )
+
+        self.head=nn.Sequential(
+            nn.Linear(1024,512),
+            nn.ReLU(),
+            nn.Linear(512,256),
+            nn.ReLU(),
+            nn.Linear(256,4),
+            nn.Sigmoid()
+        )
+
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self,previous_frames,current_frame):
+
+        temporal_context=self.temporal_context(previous_frames)
+        temporal_context=self.temporal_context_neck(temporal_context)
+        # print(temporal_context.shape)
+        visual_feature = self.visual_feature(current_frame)
+        visual_feature=self.visual_neck(visual_feature)
+        # print(visual_feature.shape)
+
+        whole_feature=torch.cat((temporal_context,visual_feature),dim=-1)
+        # print(whole_feature.shape)
+
+        # return self.head(whole_feature)
+
+        return self.head(whole_feature) * torch.tensor([456, 256, 456, 256]).to(device)
+
+
+class IntentNetFuse(nn.Module):
+    def __init__(self):
+        super(IntentNetFuse,self).__init__()
+        # resnet=models.resnet18(pretrained=True)
+        resnet = models.resnet18(pretrained=True)
+        modules = list(resnet.children())[:-2]
+        self.visual_feature = nn.Sequential(*modules)
+        self.visual_neck=nn.Sequential(
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(1),
+            # nn.Linear(2048,512),
+            # nn.ReLU()
+            # nn.BatchNorm1d(num_features=512)
+        )
+
+        resnet3d=models.video.mc3_18(pretrained=True)
+        modules=list(resnet3d.children())[:-1]
+        self.temporal_context=nn.Sequential(*modules)
+        self.temporal_context_neck=nn.Sequential(
+            nn.Flatten(1)
+        )
+
+        self.head=nn.Sequential(
+            # nn.Linear(1024,512),
+            # nn.ReLU(),
+            nn.Linear(512,128),
+            nn.ReLU(),
+            # nn.BatchNorm1d(num_features=256),
+            # nn.ReLU(),
+            # nn.Dropout(0.5),
+            # nn.Linear(256,128),
+            # nn.BatchNorm1d(num_features=128),
+            # nn.ReLU(),
+            # nn.Dropout(0.5),
+            nn.Linear(128,4),
+            nn.Sigmoid()
+        )
+
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self,previous_frames,current_frame):
+
+        temporal_context=self.temporal_context(previous_frames)
+        temporal_context=self.temporal_context_neck(temporal_context)
+        # print(temporal_context.shape)
+        visual_feature = self.visual_feature(current_frame)
+        visual_feature=self.visual_neck(visual_feature)
+        # print(visual_feature.shape)
+
+        whole_feature=temporal_context+visual_feature
+        # print(whole_feature.shape)
+
+        # return self.head(whole_feature)
+
+        return self.head(whole_feature) * torch.tensor([456, 256, 456, 256]).to(device)
+
+
+class IntentNetBackup(nn.Module):
+    def __init__(self):
+        super(IntentNetBackup,self).__init__()
+        # resnet=models.resnet18(pretrained=True)
+        resnet = models.resnet18(pretrained=True)
+        modules = list(resnet.children())[:-2]
+        self.visual_feature = nn.Sequential(*modules)
+        self.visual_neck=nn.Sequential(
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(1),
+            # nn.Linear(2048,512),
+            # nn.BatchNorm1d(num_features=512)
+        )
+
+        resnet3d=models.video.mc3_18(pretrained=True)
+        modules=list(resnet3d.children())[:-1]
+        self.temporal_context=nn.Sequential(*modules)
+        self.temporal_context_neck=nn.Sequential(
+            nn.Flatten(1)
+        )
+
+        self.head=nn.Sequential(
+            # nn.Linear(1024,512),
+            # nn.ReLU(),
+            nn.Linear(512,128),
+            # nn.BatchNorm1d(num_features=256),
+            nn.ReLU(),
+            # nn.Dropout(0.5),
+            nn.Linear(128,4),
+            nn.Sigmoid()
+        )
+
+
+
+
+
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self,previous_frames,current_frame):
+
+        temporal_context=self.temporal_context(previous_frames)
+        temporal_context=self.temporal_context_neck(temporal_context)
+        # print(temporal_context.shape)
+        visual_feature = self.visual_feature(current_frame)
+        visual_feature=self.visual_neck(visual_feature)
+        # print(visual_feature.shape)
+
+        whole_feature=temporal_context+visual_feature
+        # print(whole_feature.shape)
+
+        # return self.head(whole_feature)
+
+        return self.head(whole_feature) * torch.tensor([456, 256, 456, 256]).to(device)
+
+
+
+
+
+class IntentNetSwin(nn.Module):
     def __init__(self,time_length):
-        super(IntentNet, self).__init__()
+        super(IntentNetSwin, self).__init__()
         self.temporal_length=time_length
         cfg = Config.fromfile(config)
         model = build_model(cfg.model, train_cfg=None, test_cfg=cfg.get('test_cfg'))
@@ -55,8 +225,8 @@ class IntentNet(nn.Module):
         self.fuse_block=FuseBlock(time_length)
 
         self.MLP=nn.Sequential(
-                               # nn.Linear(12544,4096),
-                               nn.Linear(49,4)
+            nn.Linear(49,4),
+            nn.Sigmoid()
                                )
 
         self.flattern=nn.Flatten(1)
@@ -83,7 +253,8 @@ class IntentNet(nn.Module):
         # print(f'fused features shape',fused_feature.shape)
 
 
-        return self.MLP(self.flattern(fused_feature))
+        return self.MLP(self.flattern(fused_feature))* torch.tensor([456, 256, 456, 256]).to(device)
+
 
 
 if __name__=='__main__':
@@ -96,13 +267,21 @@ if __name__=='__main__':
 
     config = '../configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
     checkpoint = '../checkpoints/swin_base_patch244_window1677_sthv2.pth'
-    model=IntentNet(time_length=10)
-    num_params_temporal_context_extractor=sum(p.numel() for p in model.temporal_context_extractor.parameters())
-    total_params = sum(p.numel() for p in model.parameters())
+
+    model=IntentNetFuse()
+    cnt=0
+    for child in model.temporal_context.children():
+        cnt+=1
+        print(cnt)
+    # model = IntentNetSwin(time_length=10)
+    # num_params_temporal_context_extractor=sum(p.numel() for p in model.temporal_context_extractor.parameters())
+    # total_params = sum(p.numel() for p in model.parameters())
 
     # 99K and 11K, so the temporal feature extractor has more then 80K parameters
-    print(f'total # of parameters: {total_params}, total # of parameters without temporal feature: {total_params-num_params_temporal_context_extractor}')
-    previous_frames=torch.rand(4, 3, 10, 224, 224)
-    current_frame=torch.rand(4,3,224,224)
+    # print(f'total # of parameters: {total_params}, total # of parameters without temporal feature: {total_params-num_params_temporal_context_extractor}')
+    previous_frames=torch.rand(2, 3, 10, 112, 112)
+    current_frame=torch.rand(2,3,224,224)
     output=model(previous_frames,current_frame)
+    # outputs_history=model(previous_frames)
+    # print(outputs_history.shape)
     print(output.shape)

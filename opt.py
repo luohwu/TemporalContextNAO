@@ -12,7 +12,8 @@ parser.add_argument('--original_split', default=False, action="store_true",
 
 parser.add_argument('--euler', default=False,action="store_true",
                     help='runing on euler or local computer')
-
+parser.add_argument('--MSE',default=False,action="store_true",
+                    help="using MSE as loss function or not")
 
 parser.add_argument('--exp_name', default='exp_name', type=str,
                     help='experiment path (place to store model and logs)')
@@ -24,13 +25,15 @@ parser.add_argument('--img_resize', default=[224, 224],
 parser.add_argument('--normalize', default=True, help='subtract mean value')
 parser.add_argument('--crop', default=False, help='')
 
-parser.add_argument('--debug', default=False, action="store_true", help='debug')
+parser.add_argument('--debug', default=False, help='debug')
 
 parser.add_argument('--bs', default=32, type=int, help='batch size')
+parser.add_argument('--seed', default=40, type=int, help='random seed')
 parser.add_argument('--epochs', default=1000, type=int, help='Number of epochs')
 parser.add_argument('--lr', default=0.000002, type=float, help='learning rate')
 parser.add_argument('--weight_decay', default=0.0005, help='weight decay')
-
+parser.add_argument('--SGD', default=False,action="store_true",
+                    help="using SGD or Adam")
 args = parser.parse_args()
 args.data_path='/media/luohwu/T7/dataset' if args.euler==False else os.path.join(os.environ['TMPDIR'],'dataset')
 args.exp_path='/media/luohwu/T7/experiments/' if args.euler==False else '/cluster/home/luohwu/experiments'

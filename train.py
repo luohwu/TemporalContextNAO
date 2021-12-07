@@ -8,7 +8,7 @@ from data.dataset import NAODataset
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS
-from model.temporal_context_net import IntentNet
+from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse
 from torch import  nn
 import pandas as pd
 import cv2
@@ -24,7 +24,7 @@ experiment = Experiment(
 )
 
 experiment.log_parameters(args.__dict__)
-SEED = 40
+SEED = args.seed
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 
@@ -42,9 +42,22 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    model=IntentNet(time_length=10)
-    for p in model.temporal_context_extractor.parameters():
-        p.requires_grad = False
+    # model=IntentNet()
+
+    # model=IntentNetSwin(time_length=10)
+    # for p in model.temporal_context_extractor.parameters():
+    #     p.requires_grad=False
+
+    model=IntentNetFuse()
+    # cnt=0
+    # for child in model.temporal_context.children():
+    #     cnt+=1
+    #     if cnt<=4:
+    #         for p in child.parameters():
+    #             p.requires_grad=False
+
+    # for p in model.temporal_context_extractor.parameters():
+    #     p.requires_grad = False
 
     if multi_gpu == True:
         model = nn.DataParallel(model)
@@ -63,20 +76,29 @@ def main():
     print(f'train dataset size: {len(train_data)}, val dataset size: {len(val_data)}')
 
     train_dataloader = DataLoader(train_data, batch_size=args.bs,
-                                  shuffle=True, num_workers=2,
+                                  shuffle=True, num_workers=4,
                                   pin_memory=True)
     val_dataloader = DataLoader(val_data,
                                 batch_size=args.bs,
-                                shuffle=True, num_workers=2,
+                                shuffle=True, num_workers=4,
                                 pin_memory=True)
 
-    optimizer = optim.AdamW(model.parameters(),
-                           lr=args.lr,
-                           betas=(0.9, 0.99))
+    if args.SGD:
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    else:
+        optimizer = optim.AdamW(filter(lambda  p: p.requires_grad,model.parameters()),
+                                lr=args.lr,
+                                betas=(0.9, 0.99)
+                                )
+
+
+
+
+
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                      mode='min',
                                                      factor=0.8,
-                                                     patience=5,
+                                                     patience=3,
                                                      verbose=True,
                                                      min_lr=0.0000001)
 
@@ -99,8 +121,8 @@ def main():
     for epoch in range(current_epoch + 1, train_args['epochs'] + 1):
         print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
 
-        val_loss = val(val_dataloader, model, criterion, epoch,illustration=True)
-        train_loss = train(train_dataloader, model, criterion, optimizer)
+        train_loss = train(train_dataloader, model, criterion, optimizer,epoch=epoch)
+        val_loss = val(val_dataloader, model, criterion, epoch, illustration=False)
         scheduler.step(val_loss)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
@@ -118,9 +140,12 @@ def main():
         print(f'train loss: {train_loss:.8f} | val loss:{val_loss:.8f}')
 
 
-def train(train_dataloader, model, criterion, optimizer):
+def train(train_dataloader, model, criterion, optimizer,epoch):
     train_losses = 0.
+    total_acc=0
+    total_f1=0
 
+    len_dataset = len(train_dataloader.dataset)
     for i, data in enumerate(train_dataloader, start=1):
         previous_frames,current_frame, nao_bbox, img_path = data
         previous_frames=previous_frames.to(device)
@@ -132,7 +157,7 @@ def train(train_dataloader, model, criterion, optimizer):
         del previous_frames,current_frame
 
         # loss and acc
-        loss, _, _, _ = criterion(outputs, nao_bbox.to(device))
+        loss, acc,f1,_ = criterion(outputs, nao_bbox)
 
         del outputs, nao_bbox
 
@@ -141,8 +166,14 @@ def train(train_dataloader, model, criterion, optimizer):
         loss.backward()
         optimizer.step()
         train_losses += loss.item()
+        total_f1 += f1.sum().item()
+        total_acc += acc.sum().item()
+    acc_avg = total_acc / len_dataset
+    f1_avg=total_f1/len_dataset
+    experiment.log_metric("train_acc_avg", acc_avg, step=epoch)
+    experiment.log_metric("train_f1_avg", f1_avg, step=epoch)
 
-    return train_losses / len(train_dataloader.dataset)
+    return train_losses / len_dataset
 
 def val(val_dataloader, model, criterion, epoch, illustration):
     model.eval()
