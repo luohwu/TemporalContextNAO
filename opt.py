@@ -31,7 +31,7 @@ parser.add_argument('--bs', default=32, type=int, help='batch size')
 parser.add_argument('--seed', default=40, type=int, help='random seed')
 parser.add_argument('--epochs', default=1000, type=int, help='Number of epochs')
 parser.add_argument('--lr', default=0.000002, type=float, help='learning rate')
-parser.add_argument('--weight_decay', default=0.0005, help='weight decay')
+parser.add_argument('--weight_decay', default=0.05, help='weight decay')
 parser.add_argument('--SGD', default=False,action="store_true",
                     help="using SGD or Adam")
 args = parser.parse_args()

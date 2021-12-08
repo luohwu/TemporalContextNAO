@@ -8,7 +8,7 @@ from data.dataset import *
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS
-from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse
+from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetU
 from torch import  nn
 import pandas as pd
 import cv2
@@ -22,7 +22,7 @@ experiment = Experiment(
     workspace="thesisproject",
     auto_metric_logging=False
 )
-
+experiment.log_code(file_name="model/temporal_context_net.py")
 experiment.log_parameters(args.__dict__)
 SEED = args.seed
 torch.manual_seed(SEED)
@@ -48,7 +48,7 @@ def main():
     # for p in model.temporal_context_extractor.parameters():
     #     p.requires_grad=False
 
-    model=IntentNetFuse()
+    model=IntentNetU()
     # cnt=0
     # for child in model.temporal_context.children():
     #     cnt+=1
@@ -80,7 +80,8 @@ def main():
     else:
         optimizer = optim.AdamW(filter(lambda  p: p.requires_grad,model.parameters()),
                                 lr=args.lr,
-                                betas=(0.9, 0.99)
+                                betas=(0.9, 0.99),
+                                weight_decay=args.weight_decay
                                 )
 
 
@@ -92,7 +93,7 @@ def main():
                                                      factor=0.8,
                                                      patience=3,
                                                      verbose=True,
-                                                     min_lr=0.0000001)
+                                                     min_lr=0.000001)
 
     """"
     Heatmap version
@@ -115,7 +116,7 @@ def main():
 
         train_loss = train(train_dataloader, model, criterion, optimizer,epoch=epoch)
         val_loss = val(val_dataloader, model, criterion, epoch, illustration=False)
-        scheduler.step(val_loss)
+        # scheduler.step(val_loss)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
         if epoch % epoch_save == 0:
@@ -184,7 +185,7 @@ def val(val_dataloader, model, criterion, epoch, illustration):
             nao_bbox=nao_bbox.to(device)
 
             outputs = model(previous_frames,current_frame)
-            del current_frame
+            del previous_frames,current_frame
             loss, acc,f1,conf_matrix = criterion(outputs, nao_bbox)
             total_val_loss += loss.item()
             total_f1+=f1.sum().item()

@@ -5,7 +5,7 @@ from mmcv import Config
 from mmaction.models import build_model
 from mmcv.runner import load_checkpoint
 from torch.nn import  init
-
+from model.backbone import UNetResNet50
 class FuseBlock(nn.Module):
     def __init__(self,time_length):
         super(FuseBlock,self).__init__()
@@ -114,15 +114,17 @@ class IntentNetFuse(nn.Module):
             # nn.Linear(1024,512),
             # nn.ReLU(),
             nn.Linear(512,256),
+            nn.Dropout(0.2),
             nn.ReLU(),
             # nn.BatchNorm1d(num_features=256),
             # nn.ReLU(),
             # nn.Dropout(0.5),
-            # nn.Linear(256,128),
+            nn.Linear(256,128),
             # nn.BatchNorm1d(num_features=128),
-            # nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.ReLU(),
             # nn.Dropout(0.5),
-            nn.Linear(256,4),
+            nn.Linear(128,4),
             nn.Sigmoid()
         )
 
@@ -144,6 +146,66 @@ class IntentNetFuse(nn.Module):
         # return self.head(whole_feature)
 
         return self.head(whole_feature) * torch.tensor([456, 256, 456, 256]).to(device)
+
+class IntentNetU(nn.Module):
+    def __init__(self):
+        super(IntentNetU,self).__init__()
+        # resnet=models.resnet18(pretrained=True)
+        # resnet = models.resnet18(pretrained=True)
+        # modules = list(resnet.children())[:-2]
+        self.visual_feature = UNetResNet50()
+        self.visual_neck=nn.Sequential(
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(1) #output 2048
+        )
+
+        resnet3d=models.video.mc3_18(pretrained=True)
+        modules=list(resnet3d.children())[:-1]
+        self.temporal_context=nn.Sequential(*modules)
+        self.temporal_context_neck=nn.Sequential(
+            nn.Flatten(1),
+            nn.Linear(512,2048),
+            nn.BatchNorm1d(num_features=2048),
+            nn.ReLU()
+        )
+
+        self.head=nn.Sequential(
+            # nn.Linear(1024,512),
+            # nn.ReLU(),
+            nn.Linear(2048,512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            # nn.BatchNorm1d(num_features=256),
+            # nn.ReLU(),
+            # nn.Dropout(0.5),
+            nn.Linear(512,128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            # nn.Dropout(0.5),
+            nn.Linear(128,4),
+            nn.Sigmoid()
+        )
+
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self,previous_frames,current_frame):
+
+        temporal_context=self.temporal_context(previous_frames)
+        temporal_context=self.temporal_context_neck(temporal_context)
+        # print(temporal_context.shape)
+        visual_feature = self.visual_feature(current_frame)
+        visual_feature=self.visual_neck(visual_feature)
+        # print(visual_feature.shape)
+
+        whole_feature=temporal_context+visual_feature
+        # print(whole_feature.shape)
+
+        # return self.head(whole_feature)
+
+        return self.head(whole_feature) * torch.tensor([456, 256, 456, 256]).to(device)
+
 
 
 class IntentNetBackup(nn.Module):
@@ -268,11 +330,7 @@ if __name__=='__main__':
     config = '../configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
     checkpoint = '../checkpoints/swin_base_patch244_window1677_sthv2.pth'
 
-    model=IntentNetFuse()
-    cnt=0
-    for child in model.temporal_context.children():
-        cnt+=1
-        print(cnt)
+    model=IntentNetU()
     # model = IntentNetSwin(time_length=10)
     # num_params_temporal_context_extractor=sum(p.numel() for p in model.temporal_context_extractor.parameters())
     # total_params = sum(p.numel() for p in model.parameters())

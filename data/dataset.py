@@ -85,7 +85,8 @@ class NAODataset(Dataset):
         ])
 
     def __getitem__(self, item):
-        rand_num=torch.rand(1) if self.mode=='train' else 0
+        # rand_num=torch.rand(1) if self.mode=='train' else 0
+        rand_num=0
         df_item = self.data.iloc[item, :]
         nao_bbox = df_item.nao_bbox
         # print(f'original bbox: {nao_bbox}')
@@ -97,7 +98,7 @@ class NAODataset(Dataset):
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             img=Image.open(os.path.join(img_dir,image_name))
-            if rand_num > 0.65:
+            if rand_num > 0.5:
                 img = ImageOps.mirror(img)
             img=self.transform_previous_frames(img)
             previous_frames.append(img)
@@ -106,7 +107,7 @@ class NAODataset(Dataset):
         previous_frames=previous_frames.transpose(0,1)
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
-        if rand_num>0.65:
+        if rand_num>0.5:
             current_frame = ImageOps.mirror(current_frame)
             temp=nao_bbox[0]
             nao_bbox[0]=455-nao_bbox[2]
