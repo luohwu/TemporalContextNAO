@@ -61,18 +61,18 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
 
 
 class NAODataset(Dataset):
-    def __init__(self,data, mode='train'):
+    def __init__(self,dataset_name='ADL', mode='train'):
         self.mode=mode
         self.crop = transforms.RandomCrop((args.img_resize[0],
                                            args.img_resize[1]))
         self.transform_label = transforms.ToTensor()
 
-        self.data = data
+        self.data = make_sequence_dataset(mode,dataset_name)
         self.data = self.data.sample(frac=1).reset_index(drop=True)
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose([  # [h, w]
-            # transforms.Resize(args.img_resize),
+            transforms.Resize(args.img_resize),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])  # ImageNet
@@ -86,7 +86,7 @@ class NAODataset(Dataset):
 
     def __getitem__(self, item):
         # rand_num=torch.rand(1) if self.mode=='train' else 0
-        rand_num=0
+        # rand_num=0
         df_item = self.data.iloc[item, :]
         nao_bbox = df_item.nao_bbox
         # print(f'original bbox: {nao_bbox}')
@@ -98,8 +98,8 @@ class NAODataset(Dataset):
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             img=Image.open(os.path.join(img_dir,image_name))
-            if rand_num > 0.5:
-                img = ImageOps.mirror(img)
+            # if rand_num > 0.5:
+            #     img = ImageOps.mirror(img)
             img=self.transform_previous_frames(img)
             previous_frames.append(img)
             del img
@@ -107,11 +107,11 @@ class NAODataset(Dataset):
         previous_frames=previous_frames.transpose(0,1)
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
-        if rand_num>0.5:
-            current_frame = ImageOps.mirror(current_frame)
-            temp=nao_bbox[0]
-            nao_bbox[0]=455-nao_bbox[2]
-            nao_bbox[2] = 455 - temp
+        # if rand_num>0.5:
+        #     current_frame = ImageOps.mirror(current_frame)
+        #     temp=nao_bbox[0]
+        #     nao_bbox[0]=455-nao_bbox[2]
+        #     nao_bbox[2] = 455 - temp
 
         # print(f'new bbox: {nao_bbox}')
 

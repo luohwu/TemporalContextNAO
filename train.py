@@ -7,8 +7,8 @@ from torch.utils.data import DataLoader
 from data.dataset import *
 from opt import *
 import tarfile
-from tools.CIOU import CIOU_LOSS
-from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetU
+from tools.CIOU import CIOU_LOSS,CIOU_LOSS2,cal_acc_f1
+from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetU,IntentNetIC
 from torch import  nn
 import pandas as pd
 import cv2
@@ -48,7 +48,10 @@ def main():
     # for p in model.temporal_context_extractor.parameters():
     #     p.requires_grad=False
 
-    model=IntentNetU()
+    model=IntentNetFuse()
+    # model = IntentNetIC()
+    for p in model.temporal_context.parameters():
+        p.requires_grad=False
     # cnt=0
     # for child in model.temporal_context.children():
     #     cnt+=1
@@ -63,7 +66,15 @@ def main():
         model = nn.DataParallel(model)
     model = model.to(device)
 
-    train_dataset, val_dataset = ini_datasets(dataset_name=args.dataset,original_split=args.original_split)
+    if args.original_split:
+        train_dataset = NAODataset(mode='train', dataset_name=args.dataset)
+        val_dataset = NAODataset(mode='val', dataset_name=args.dataset)
+    else:
+        all_data = NAODataset(mode='all', dataset_name=args.dataset)
+        if args.dataset == 'ADL':
+            train_dataset, val_dataset = torch.utils.data.random_split(all_data, [1767, 450])
+        else:
+            train_dataset, val_dataset = torch.utils.data.random_split(all_data, [8589, 3000])
 
     print(f'train dataset size: {len(train_dataset)}, val dataset size: {len(val_dataset)}')
 
@@ -80,26 +91,28 @@ def main():
     else:
         optimizer = optim.AdamW(filter(lambda  p: p.requires_grad,model.parameters()),
                                 lr=args.lr,
-                                betas=(0.9, 0.99),
-                                weight_decay=args.weight_decay
+                                betas=(0.9, 0.99)
+                                # ,weight_decay=args.weight_decay
                                 )
 
 
 
 
 
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                     mode='min',
-                                                     factor=0.8,
-                                                     patience=3,
-                                                     verbose=True,
-                                                     min_lr=0.000001)
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+    #                                                  mode='min',
+    #                                                  factor=0.8,
+    #                                                  patience=3,
+    #                                                  verbose=True,
+    #                                                  min_lr=0.000001)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, eta_min=1e-5,verbose=True)
 
     """"
     Heatmap version
     """
 
     criterion = CIOU_LOSS()
+    # criterion=nn.MSELoss()
 
     train_args['ckpt_path'] = os.path.join(train_args['exp_path'],args.dataset,
                                            exp_name, 'ckpts/')
@@ -114,14 +127,14 @@ def main():
     for epoch in range(current_epoch + 1, train_args['epochs'] + 1):
         print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
 
-        train_loss = train(train_dataloader, model, criterion, optimizer,epoch=epoch)
+        train_loss = train(train_dataloader, model, criterion, optimizer, epoch=epoch)
         val_loss = val(val_dataloader, model, criterion, epoch, illustration=False)
         # scheduler.step(val_loss)
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
         if epoch % epoch_save == 0:
-            # checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
-            #
+            checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
+
             # torch.save({'epoch': epoch,
             #             'model_state_dict': model.state_dict(),
             #             'optimizer_state_dict': optimizer.state_dict()
@@ -151,6 +164,9 @@ def train(train_dataloader, model, criterion, optimizer,epoch):
 
         # loss and acc
         loss, acc,f1,_ = criterion(outputs, nao_bbox)
+        # loss = criterion(outputs, nao_bbox)
+        # acc, f1, conf_matrix = cal_acc_f1(outputs, nao_bbox)
+
 
         del outputs, nao_bbox
 
@@ -186,7 +202,13 @@ def val(val_dataloader, model, criterion, epoch, illustration):
 
             outputs = model(previous_frames,current_frame)
             del previous_frames,current_frame
+
+
             loss, acc,f1,conf_matrix = criterion(outputs, nao_bbox)
+            # loss = criterion(outputs, nao_bbox)
+            # acc, f1, conf_matrix=cal_acc_f1(outputs, nao_bbox)
+
+
             total_val_loss += loss.item()
             total_f1+=f1.sum().item()
             total_acc += acc.sum().item()
@@ -208,20 +230,20 @@ def val(val_dataloader, model, criterion, epoch, illustration):
                     global_max_nao_bbox = outputs[max_index]
             del outputs, nao_bbox
 
-    if illustration:
-        if global_min_acc<999:
-            illustration_worst = generate_comparison(global_min_image, global_min_nao_bbox, global_min_nao_bbox_gt)
-            experiment.log_image(illustration_worst, name=f'worst_{epoch}',step=epoch)
-            experiment.log_text(f'worst_{epoch}: {global_min_image}',step=epoch)
-        if global_max_acc>-999:
-            illustration_best=generate_comparison(global_max_image, global_max_nao_bbox, global_max_nao_bbox_gt)
-            experiment.log_image(illustration_best, name=f'best_{epoch}',step=epoch)
-            experiment.log_text(f'best_{epoch}: {global_max_image}', step=epoch)
+        if illustration:
+            if global_min_acc<999:
+                illustration_worst = generate_comparison(global_min_image, global_min_nao_bbox, global_min_nao_bbox_gt)
+                experiment.log_image(illustration_worst, name=f'worst_{epoch}',step=epoch)
+                experiment.log_text(f'worst_{epoch}: {global_min_image}',step=epoch)
+            if global_max_acc>-999:
+                illustration_best=generate_comparison(global_max_image, global_max_nao_bbox, global_max_nao_bbox_gt)
+                experiment.log_image(illustration_best, name=f'best_{epoch}',step=epoch)
+                experiment.log_text(f'best_{epoch}: {global_max_image}', step=epoch)
 
-    val_loss_avg = total_val_loss / len_dataset
-    acc_avg = total_acc / len_dataset
-    f1_avg=total_f1/len_dataset
-    conf_matrix_avg=(total_conf_matrix/len_dataset).astype(np.int32)
+        val_loss_avg = total_val_loss / len_dataset
+        acc_avg = total_acc / len_dataset
+        f1_avg=total_f1/len_dataset
+        conf_matrix_avg=(total_conf_matrix/len_dataset).astype(np.int32)
     print(f'[epoch {epoch}], [val loss {val_loss_avg:5f}], [acc avg {acc_avg:5f}],[f1 avg {f1_avg:5f}] ')
     experiment.log_metric("val_acc_avg", acc_avg, step=epoch)
     experiment.log_metric("val_f1_avg", f1_avg, step=epoch)
