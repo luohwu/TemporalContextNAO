@@ -50,8 +50,8 @@ def main():
 
     model=IntentNetFuse()
     # model = IntentNetIC()
-    for p in model.temporal_context.parameters():
-        p.requires_grad=False
+    # for p in model.temporal_context.parameters():
+    #     p.requires_grad=False
     # cnt=0
     # for child in model.temporal_context.children():
     #     cnt+=1
@@ -80,15 +80,20 @@ def main():
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.bs,
                                   shuffle=True, num_workers=4,
-                                  pin_memory=True)
+                                  pin_memory=True,
+                                  drop_last=True if torch.cuda.device_count() >=4 else False)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.bs,
                                 shuffle=True, num_workers=4,
-                                pin_memory=True)
+                                pin_memory=True,
+                                drop_last=True if torch.cuda.device_count() >= 4 else False)
 
     if args.SGD:
-        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+        print('using SGD')
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.95)
     else:
+
+        print('using AdamW')
         optimizer = optim.AdamW(filter(lambda  p: p.requires_grad,model.parameters()),
                                 lr=args.lr,
                                 betas=(0.9, 0.99)
@@ -99,13 +104,15 @@ def main():
 
 
 
-    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-    #                                                  mode='min',
-    #                                                  factor=0.8,
-    #                                                  patience=3,
-    #                                                  verbose=True,
-    #                                                  min_lr=0.000001)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, eta_min=1e-5,verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                     mode='min',
+                                                     factor=0.8,
+                                                     patience=3,
+                                                     verbose=True,
+                                                     min_lr=0.00001)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, eta_min=4e-5,verbose=True)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=25,eta_min=1e-5,verbose=True)
+    # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=True)
 
     """"
     Heatmap version
@@ -130,6 +137,7 @@ def main():
         train_loss = train(train_dataloader, model, criterion, optimizer, epoch=epoch)
         val_loss = val(val_dataloader, model, criterion, epoch, illustration=False)
         # scheduler.step(val_loss)
+        scheduler.step()
         train_loss_list.append(train_loss)
         val_loss_list.append(val_loss)
         if epoch % epoch_save == 0:
@@ -183,6 +191,7 @@ def train(train_dataloader, model, criterion, optimizer,epoch):
     experiment.log_metric("train_f1_avg", f1_avg, step=epoch)
 
     return train_losses / len_dataset
+    # return train_losses
 
 def val(val_dataloader, model, criterion, epoch, illustration):
     model.eval()

@@ -121,7 +121,7 @@ class IntentNetFuse(nn.Module):
             # nn.Linear(1024,512),
             # nn.ReLU(),
             nn.Linear(512,256),
-            nn.BatchNorm1d(256),
+            # nn.BatchNorm1d(256),
             nn.ReLU(),
             # nn.Linear(1024,1024),
             # nn.BatchNorm1d(1024),
@@ -130,7 +130,7 @@ class IntentNetFuse(nn.Module):
             # nn.ReLU(),
             # nn.Dropout(0.5),
             nn.Linear(256,128),
-            nn.Dropout(0.5),
+            # nn.Dropout(0.3),
             nn.ReLU(),
             # nn.BatchNorm1d(num_features=128),
             # nn.BatchNorm1d(1024),
@@ -157,7 +157,7 @@ class IntentNetFuse(nn.Module):
 
         # return self.head(fused_feature+visual_feature)
 
-        return self.head(fused_feature+visual_feature) * torch.tensor([456, 256, 456, 256]).to(device)
+        return self.head(fused_feature+visual_feature) * torch.tensor([456., 256., 456., 256.]).cuda()
 
 
 class IntentNetIC(nn.Module):
