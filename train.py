@@ -8,7 +8,7 @@ from data.dataset import *
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS,CIOU_LOSS2,cal_acc_f1
-from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetU,IntentNetIC
+from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetIC,IntentNetFuseAttention
 from torch import  nn
 import pandas as pd
 import cv2
@@ -48,7 +48,8 @@ def main():
     # for p in model.temporal_context_extractor.parameters():
     #     p.requires_grad=False
 
-    model=IntentNetFuse()
+    # model=IntentNetFuse()
+    model=IntentNetFuseAttention()
     # model = IntentNetIC()
     # for p in model.temporal_context.parameters():
     #     p.requires_grad=False
@@ -66,18 +67,21 @@ def main():
         model = nn.DataParallel(model)
     model = model.to(device)
 
-    if args.original_split:
-        train_dataset = NAODataset(mode='train', dataset_name=args.dataset)
-        val_dataset = NAODataset(mode='val', dataset_name=args.dataset)
-    else:
-        all_data = NAODataset(mode='all', dataset_name=args.dataset)
-        if args.dataset == 'ADL':
-            train_dataset, val_dataset = torch.utils.data.random_split(all_data, [1767, 450])
-        else:
-            train_dataset, val_dataset = torch.utils.data.random_split(all_data, [8589, 3000])
+    # if args.original_split:
+    #     train_dataset = NAODataset(mode='train', dataset_name=args.dataset)
+    #     val_dataset = NAODataset(mode='val', dataset_name=args.dataset)
+    # else:
+    #     all_data = NAODataset(mode='all', dataset_name=args.dataset)
+    #     if args.dataset == 'ADL':
+    #         train_dataset, val_dataset = torch.utils.data.random_split(all_data, [1767, 450])
+    #     else:
+    #         train_dataset, val_dataset = torch.utils.data.random_split(all_data, [8589, 3000])
+    #
+    train_dataset, val_dataset = ini_datasets(dataset_name=args.dataset, original_split=args.original_split)
+
+
 
     print(f'train dataset size: {len(train_dataset)}, val dataset size: {len(val_dataset)}')
-
     train_dataloader = DataLoader(train_dataset, batch_size=args.bs,
                                   shuffle=True, num_workers=4,
                                   pin_memory=True,
@@ -90,7 +94,7 @@ def main():
 
     if args.SGD:
         print('using SGD')
-        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.95)
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
     else:
 
         print('using AdamW')
@@ -280,3 +284,4 @@ if __name__ == '__main__':
     # train_data = EpicDatasetV2('train')
 
     main()
+

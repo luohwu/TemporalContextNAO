@@ -12,6 +12,18 @@ from opt import *
 import numpy as np
 
 
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=1.):
+        self.std = std
+        self.mean = mean
+
+    def __call__(self, tensor):
+        return tensor + torch.randn(tensor.size()) * self.std + self.mean
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
+
 
 def make_sequence_dataset(mode='train',dataset_name='ADL'):
 
@@ -59,15 +71,62 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
     print('=============================================================')
     return df_items
 
+# def make_sequence_dataset(mode='train',dataset_name='ADL'):
+#
+#     #val is the same as test
+#     if mode=='all':
+#         par_video_id_list=id
+#     elif mode=='train':
+#         par_video_id_list = train_video_id
+#     else:
+#         par_video_id_list=test_video_id
+#
+#
+#     print(f'start load {mode} data, #videos: {len(par_video_id_list)}')
+#     df_items = pd.DataFrame()
+#     for video_id in sorted(par_video_id_list):
+#         anno_name = 'nao_' + video_id + '.csv'
+#         anno_path = os.path.join(args.data_path, annos_path, anno_name)
+#         if os.path.exists(anno_path):
+#             # start = time.process_time()
+#             if dataset_name=='ADL':
+#                 #for ADL dataset, the format of video_id is : P_01
+#                 img_path = os.path.join(args.data_path, frames_path,video_id)
+#             else:
+#                 #for Epic dataset, the format of video_id is: P01P01_01, video_id[0:3] is participant_id,
+#                 #and video_id[3:] is the real video_id
+#                 img_path=os.path.join(args.data_path,frames_path,video_id[0:3],video_id[3:])
+#
+#             annos = pd.read_csv(anno_path,
+#                                 converters={"nao_bbox": literal_eval,
+#                                             "nao_bbox_resized": literal_eval,
+#                                             "previous_frames":literal_eval})
+#             annos['img_path']=img_path
+#
+#             if not annos.empty:
+#
+#
+#                 annos_subset=annos[['img_path',
+#                                                  'nao_bbox_resized', 'label','previous_frames','frame']]
+#                 df_items = df_items.append(annos_subset)
+#
+#
+#
+#     df_items = df_items.rename(columns={'nao_bbox_resized': 'nao_bbox'})
+#     print('finished')
+#     print('=============================================================')
+#     return df_items
+
 
 class NAODataset(Dataset):
-    def __init__(self,dataset_name='ADL', mode='train'):
+    def __init__(self,data, mode='train'):
         self.mode=mode
         self.crop = transforms.RandomCrop((args.img_resize[0],
                                            args.img_resize[1]))
         self.transform_label = transforms.ToTensor()
 
-        self.data = make_sequence_dataset(mode,dataset_name)
+        # self.data = make_sequence_dataset(mode,dataset_name)
+        self.data = data
         self.data = self.data.sample(frac=1).reset_index(drop=True)
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
@@ -76,8 +135,23 @@ class NAODataset(Dataset):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])  # ImageNet
+            , AddGaussianNoise(0., 0.5)
         ])
+        self.transform_test = transforms.Compose([  # [h, w]
+            transforms.Resize(args.img_resize),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])  # ImageNet
+        ])
+
         self.transform_previous_frames = transforms.Compose([  # [h, w]
+            transforms.Resize((224,224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            , AddGaussianNoise(0., 0.5)
+        ])
+        self.transform_previous_frames_test = transforms.Compose([  # [h, w]
             transforms.Resize((112,112)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -85,7 +159,7 @@ class NAODataset(Dataset):
         ])
 
     def __getitem__(self, item):
-        # rand_num=torch.rand(1) if self.mode=='train' else 0
+        rand_num=torch.rand(1) if self.mode=='train' else 0
         # rand_num=0
         df_item = self.data.iloc[item, :]
         nao_bbox = df_item.nao_bbox
@@ -98,24 +172,24 @@ class NAODataset(Dataset):
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             img=Image.open(os.path.join(img_dir,image_name))
-            # if rand_num > 0.5:
-            #     img = ImageOps.mirror(img)
-            img=self.transform_previous_frames(img)
+            if rand_num > 0.5:
+                img = ImageOps.mirror(img)
+            img=self.transform_previous_frames(img) if self.mode=='train' else self.transform_previous_frames_test(img)
             previous_frames.append(img)
             del img
         previous_frames=torch.stack(previous_frames)
         previous_frames=previous_frames.transpose(0,1)
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
-        # if rand_num>0.5:
-        #     current_frame = ImageOps.mirror(current_frame)
-        #     temp=nao_bbox[0]
-        #     nao_bbox[0]=455-nao_bbox[2]
-        #     nao_bbox[2] = 455 - temp
+        if rand_num>0.5:
+            current_frame = ImageOps.mirror(current_frame)
+            temp=nao_bbox[0]
+            nao_bbox[0]=455-nao_bbox[2]
+            nao_bbox[2] = 455 - temp
 
         # print(f'new bbox: {nao_bbox}')
 
-        current_frame_tensor=self.transform(current_frame)
+        current_frame_tensor=self.transform(current_frame) if self.mode=='train' else self.transform_test(current_frame)
         del current_frame
 
 
@@ -140,7 +214,6 @@ def ini_datasets(dataset_name='ADL',original_split=False):
         train_data, val_data = make_sequence_dataset('train', dataset_name),make_sequence_dataset('val', dataset_name)
 
     return NAODataset(mode='train', data=train_data), NAODataset(mode='val', data=val_data)
-
 
 
 if __name__ == '__main__':
