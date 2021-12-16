@@ -5,7 +5,7 @@ from mmcv import Config
 from mmaction.models import build_model
 from mmcv.runner import load_checkpoint
 from torch.nn import  init
-from model.backbone import UNetResNet50
+from model.unet_resnet_backup import UNetResNet18
 
 class TemporalContextExtractor(nn.Module):
     def __init__(self):
@@ -151,7 +151,6 @@ class IntentNetFuse(nn.Module):
     # previous_frames: [batch_size, channel, temporal_dim, height, width]
     # current frame: [batch_sze, channel, height, width]
     def forward(self,previous_frames,current_frame):
-        print(previous_frames.shape)
 
         temporal_context=self.temporal_context(previous_frames)
         temporal_context=self.temporal_context_neck(temporal_context)
@@ -165,7 +164,7 @@ class IntentNetFuse(nn.Module):
 
         # return self.head(fused_feature+visual_feature)
 
-        return self.head(fused_feature+visual_feature) * torch.tensor([456, 256, 456, 256])
+        return self.head(fused_feature+visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
 
     def init_weights(self,m):
         if isinstance(m,nn.Linear):
@@ -307,6 +306,21 @@ class IntentNetFuseAttention(nn.Module):
             m.bias.data.fill_(0.01)
 
 
+class IntentNetFuseHeatmap(nn.Module):
+    def __init__(self):
+        super(IntentNetFuseHeatmap,self).__init__()
+        self.model=UNetResNet18()
+
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self,previous_frames,current_frame):
+        return self.model(current_frame)
+
+    def init_weights(self,m):
+        if isinstance(m,nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
 
 
 class IntentNetSwin(nn.Module):
