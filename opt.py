@@ -14,6 +14,9 @@ parser.add_argument('--euler', default=False,action="store_true",
                     help='runing on euler or local computer')
 parser.add_argument('--MSE',default=False,action="store_true",
                     help="using MSE as loss function or not")
+parser.add_argument('--C3D',default=False,action='store_true',
+                    help="using C3D or not")
+
 
 parser.add_argument('--exp_name', default='exp_name', type=str,
                     help='experiment path (place to store model and logs)')

@@ -123,24 +123,10 @@ class IntentNetFuse(nn.Module):
         )
         self.fuse_block.apply(self.init_weights)
         self.head=nn.Sequential(
-            # nn.Linear(1024,512),
-            # nn.ReLU(),
             nn.Linear(512,256),
-            # nn.BatchNorm1d(256),
             nn.ReLU(),
-            # nn.Linear(1024,1024),
-            # nn.BatchNorm1d(1024),
-            # nn.ReLU(),
-            # nn.BatchNorm1d(num_features=256),
-            # nn.ReLU(),
-            # nn.Dropout(0.5),
             nn.Linear(256,128),
-            # nn.Dropout(0.3),
             nn.ReLU(),
-            # nn.BatchNorm1d(num_features=128),
-            # nn.BatchNorm1d(1024),
-            # nn.ReLU(),
-            # nn.Dropout(0.5),
             nn.Linear(128,4),
             nn.Sigmoid()
         )
@@ -167,9 +153,10 @@ class IntentNetFuse(nn.Module):
         return self.head(fused_feature+visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
 
     def init_weights(self,m):
-        if isinstance(m,nn.Linear):
-            torch.nn.init.xavier_uniform_(m.weight)
-            m.bias.data.fill_(0.01)
+        pass
+        # if isinstance(m,nn.Linear):
+            # torch.nn.init.xavier_uniform_(m.weight)
+            # m.bias.data.fill_(0.01)
 
 
 
@@ -229,9 +216,9 @@ class IntentNetIC(nn.Module):
 
 
 
-class IntentNetFuseAttention(nn.Module):
+class IntentNetFuseAttentionVector(nn.Module):
     def __init__(self):
-        super(IntentNetFuseAttention,self).__init__()
+        super(IntentNetFuseAttentionVector, self).__init__()
         resnet = models.resnet18(pretrained=True)
         modules = list(resnet.children())[:-2]
         self.visual_feature = nn.Sequential(*modules)
@@ -242,13 +229,6 @@ class IntentNetFuseAttention(nn.Module):
         )
         self.visual_neck.apply(self.init_weights)
 
-        resnet3d=models.video.mc3_18(pretrained=True)
-        modules=list(resnet3d.children())[:-1]
-        self.temporal_context=nn.Sequential(*modules)
-        self.temporal_context_neck=nn.Sequential(
-            nn.Flatten(1)
-        )
-        self.temporal_context_neck.apply(self.init_weights)
 
 
         self.fuse_block=nn.Sequential(
@@ -284,6 +264,7 @@ class IntentNetFuseAttention(nn.Module):
 
         # shape to [B, T, length_of_feature]
         frame_wise_feature=frame_wise_feature.view(B,T,-1)
+        # print(f'frame-wise feature shape: {frame_wise_feature.shape}')
 
         # apply the attention operation
         # temporal context = linear combination of frame-wise features
@@ -305,6 +286,154 @@ class IntentNetFuseAttention(nn.Module):
             torch.nn.init.xavier_uniform_(m.weight)
             m.bias.data.fill_(0.01)
 
+
+class IntentNetFuseAttentionMatrix(nn.Module):
+    def __init__(self):
+        super(IntentNetFuseAttentionMatrix, self).__init__()
+        resnet = models.resnet18(pretrained=True)
+        modules = list(resnet.children())[:-2]
+        self.visual_feature = nn.Sequential(*modules)
+        self.visual_neck=nn.Sequential(
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(1),
+        )
+        self.visual_neck.apply(self.init_weights)
+
+
+
+        self.fuse_block=nn.Sequential(
+            nn.Linear(512,512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512,512)
+        )
+        self.fuse_block.apply(self.init_weights)
+        self.head=nn.Sequential(
+            nn.Linear(512,256),
+            nn.ReLU(),
+            nn.Linear(256,128),
+            nn.ReLU(),
+            nn.Linear(128,4),
+            nn.Sigmoid()
+        )
+        self.head.apply(self.init_weights)
+        self.attention_table=torch.nn.Parameter(torch.rand(10,512))
+
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self,previous_frames,current_frame):
+        previous_frames=previous_frames.transpose(1,2)
+        # print(f'shape of previous_frames: {previous_frames.shape}')
+        B,T,C,H,W=previous_frames.shape
+
+        previous_frames=previous_frames.reshape(-1,C,H,W) # [B*T, C, H, W]
+        # print(f'new shape of previous frames{previous_frames.shape}')
+
+        # apply the base model to extract visual features for each frame
+        frame_wise_feature=self.visual_neck(self.visual_feature(previous_frames))
+        # print(f'shape of frame_wise_feature: {frame_wise_feature.shape}')
+
+        # shape to [B, T, length_of_feature]
+        frame_wise_feature=frame_wise_feature.view(B,T,-1)
+        # apply the attention operation
+        # temporal context = linear combination of frame-wise features
+
+        # [B,T,C]
+        temporal_context=torch.nn.functional.softmax(self.attention_table,dim=0)* frame_wise_feature
+
+        # [B,C]
+        temporal_context=temporal_context.sum(dim=1)
+
+        visual_feature = self.visual_feature(current_frame)
+        visual_feature=self.visual_neck(visual_feature)
+        # print('shape of visual feature neck',visual_feature.shape)
+
+        fused_feature=self.fuse_block(visual_feature+temporal_context)
+        # print(fused_feature.shape)
+
+        # return self.head(fused_feature+visual_feature)
+
+        return self.head(fused_feature+visual_feature) * torch.tensor([456, 256, 456, 256])
+
+    def init_weights(self,m):
+        if isinstance(m,nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+
+
+class IntentNetFullAttention(nn.Module):
+    def __init__(self):
+        super(IntentNetFullAttention, self).__init__()
+        resnet = models.resnet18(pretrained=True)
+        modules = list(resnet.children())[:-2]
+        self.visual_feature = nn.Sequential(*modules)
+        self.visual_neck = nn.Sequential(
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(1),
+        )
+        # self.visual_neck.apply(self.init_weights)
+
+        self.fuse_block = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 512)
+        )
+        # self.fuse_block.apply(self.init_weights)
+        self.head = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 4),
+            nn.Sigmoid()
+        )
+        # self.head.apply(self.init_weights)
+        self.attention_vector = torch.nn.Parameter(torch.rand(11))
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self, previous_frames, current_frame):
+        previous_frames = previous_frames.transpose(1, 2)
+        B, T, C, H, W = previous_frames.shape
+        current_frame = current_frame.unsqueeze(1)
+
+        # [B,T+1,C,H,W]
+        all_frames = torch.cat((previous_frames, current_frame), dim=1)
+        all_frames = all_frames.reshape(-1, C, H, W)  # [B*(T+1), C, H, W]
+
+
+        # apply the base model to extract visual features for each frame
+        frame_wise_feature = self.visual_neck(self.visual_feature(all_frames))
+
+        # shape to [B, T, length_of_feature]
+        frame_wise_feature = frame_wise_feature.view(B, T + 1, -1)
+        # print(f'frame-wise feature shape: {frame_wise_feature.shape}')
+
+        # # apply the attention operation
+        # # temporal context = linear combination of frame-wise features
+        fused_feature = torch.matmul(torch.nn.functional.softmax(self.attention_vector, dim=0), frame_wise_feature)
+
+        # fused_feature=self.fuse_block(visual_feature+temporal_context)
+        # # print(fused_feature.shape)
+
+        # # return self.head(fused_feature+visual_feature)
+
+        return self.head(fused_feature) * torch.tensor([456, 256, 456, 256]).cuda()
+
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
 
 class IntentNetFuseHeatmap(nn.Module):
     def __init__(self):
@@ -375,27 +504,21 @@ class IntentNetSwin(nn.Module):
 
 
 if __name__=='__main__':
-    # resnet = models.resnet50(pretrained=True)
-    # modules = list(resnet.children())[:-2]
-    # resnet=nn.Sequential(*modules)
-    # img=torch.rand(1,3,224,224)
-    # output=resnet(img)
-    # print(output.shape)
 
     config = '../configs/recognition/swin/swin_base_patch244_window1677_sthv2.py'
     checkpoint = '../checkpoints/swin_base_patch244_window1677_sthv2.pth'
 
     # model=IntentNetIC()
-    model=IntentNetFuseAttention()
+    model=IntentNetFuseAttentionMatrix()
     # model = IntentNetSwin(time_length=10)
     # num_params_temporal_context_extractor=sum(p.numel() for p in model.temporal_context_extractor.parameters())
-    # total_params = sum(p.numel() for p in model.parameters())
-
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f'model size: {total_params}')
     # 99K and 11K, so the temporal feature extractor has more then 80K parameters
     # print(f'total # of parameters: {total_params}, total # of parameters without temporal feature: {total_params-num_params_temporal_context_extractor}')
-    previous_frames=torch.rand(2, 10, 3, 224, 224)
+    previous_frames=torch.rand(2, 3, 10, 224, 224)
     current_frame=torch.rand(2,3,224,224)
     output=model(previous_frames,current_frame)
     # outputs_history=model(previous_frames)
     # print(outputs_history.shape)
-    # print(output.shape)
+    print(output.shape)

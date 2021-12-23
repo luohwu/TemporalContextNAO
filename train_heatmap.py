@@ -8,7 +8,7 @@ from data.dataset_heatmap import *
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS,CIOU_LOSS2,cal_acc_f1
-from model.temporal_context_net import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetIC,IntentNetFuseAttention,IntentNetFuseHeatmap
+from model.IntentNet import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetIC,IntentNetFuseAttentionVector,IntentNetFuseHeatmap
 from torch import  nn
 import pandas as pd
 import cv2
@@ -22,7 +22,7 @@ experiment = Experiment(
     workspace="thesisproject",
     auto_metric_logging=False
 )
-experiment.log_code(file_name="model/temporal_context_net.py")
+experiment.log_code(file_name="model/IntentNet.py")
 experiment.log_parameters(args.__dict__)
 SEED = args.seed
 torch.manual_seed(SEED)

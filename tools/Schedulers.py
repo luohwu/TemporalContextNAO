@@ -26,7 +26,59 @@ class CosExpoScheduler(torch.optim.lr_scheduler._LRScheduler):
                 for base_lr in self.base_lrs]
 
 
+class DecayCosinWarmRestars(torch.optim.lr_scheduler.CosineAnnealingWarmRestarts):
+    def __init__(self, optimizer, T_0, T_mult=1, eta_min=0, last_epoch=-1, verbose=False,decay_rate=1):
+        self.decay_rate=decay_rate
+        super(DecayCosinWarmRestars,self).__init__(optimizer,T_0,T_mult,eta_min,last_epoch,verbose)
 
+    def step(self, epoch=None):
+
+        if epoch is None and self.last_epoch < 0:
+            epoch = 0
+
+        if epoch is None:
+            epoch = self.last_epoch + 1
+            self.T_cur = self.T_cur + 1
+            if self.T_cur >= self.T_i:
+                self.T_cur = self.T_cur - self.T_i
+                self.T_i = self.T_i * self.T_mult
+                # self.eta_min = self.eta_min *self.decay_rate
+                self.base_lrs=[max(self.eta_min,p *self.decay_rate) for p in self.base_lrs]
+        else:
+            if epoch < 0:
+                raise ValueError("Expected non-negative epoch, but got {}".format(epoch))
+            if epoch >= self.T_0:
+                if self.T_mult == 1:
+                    self.T_cur = epoch % self.T_0
+                else:
+                    n = int(math.log((epoch / self.T_0 * (self.T_mult - 1) + 1), self.T_mult))
+                    self.T_cur = epoch - self.T_0 * (self.T_mult ** n - 1) / (self.T_mult - 1)
+                    self.T_i = self.T_0 * self.T_mult ** (n)
+            else:
+                self.T_i = self.T_0
+                self.T_cur = epoch
+        self.last_epoch = math.floor(epoch)
+
+        class _enable_get_lr_call:
+
+            def __init__(self, o):
+                self.o = o
+
+            def __enter__(self):
+                self.o._get_lr_called_within_step = True
+                return self
+
+            def __exit__(self, type, value, traceback):
+                self.o._get_lr_called_within_step = False
+                return self
+
+        with _enable_get_lr_call(self):
+            for i, data in enumerate(zip(self.optimizer.param_groups, self.get_lr())):
+                param_group, lr = data
+                param_group['lr'] = lr
+                self.print_lr(self.verbose, i, lr, epoch)
+
+        self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
 
 class MinimumExponentialLR(torch.optim.lr_scheduler.ExponentialLR):
 
@@ -53,7 +105,7 @@ class MinimumExponentialLR(torch.optim.lr_scheduler.ExponentialLR):
 
 if __name__=='__main__':
     model=torchvision.models.resnet18(pretrained=False)
-    epochs = 1000
+    epochs = 10000
     ################################################################################
     optimizer = torch.optim.SGD(model.parameters(), lr=3e-4, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, eta_min=4e-5, verbose=False)
@@ -66,6 +118,16 @@ if __name__=='__main__':
     ################################################################################
     optimizer = torch.optim.SGD(model.parameters(), lr=3e-4, momentum=0.9)
     scheduler=CosExpoScheduler(optimizer, switch_step=100, eta_min=4e-5, verbose=False)
+    lrs = []
+    for epoch in range(epochs):
+        lrs.append(optimizer.param_groups[0]['lr'])
+        scheduler.step()
+    print(f'last lr: {lrs[-1]}')
+    plt.plot(lrs)
+
+    ################################################################################
+    optimizer = torch.optim.SGD(model.parameters(), lr=3e-4, momentum=0.9)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=100,eta_min=4e-7,decay_rate=0.5,T_mult=2)
     lrs = []
     for epoch in range(epochs):
         lrs.append(optimizer.param_groups[0]['lr'])
