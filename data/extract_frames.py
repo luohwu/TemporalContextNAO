@@ -95,10 +95,11 @@ def py_files(members,participant_id,video_id,basic_only=False):
     assert  num==len(all_frames),f"un-consistant numbers of frames in {video_id}"
 
 def extract_frames_from_video():
-    annos=pd.read_csv('/media/luohwu/T7/dataset/EPIC/nao_annotations/nao_P01P01_01.csv')
+    annos=pd.read_csv('/media/luohwu/T7/dataset/EPIC/nao_annotations/nao_P01P01_02.csv')
     frames=annos['frame']
     frames=sorted(frames)
-    vidcap = cv2.VideoCapture('/media/luohwu/T7/EpicKitchen/videos/P01/P01_01.mp4')#/home/luohwu/Videos
+    # vidcap = cv2.VideoCapture('/media/luohwu/T7/EpicKitchen/videos/P01/P01_16.mp4')
+    vidcap = cv2.VideoCapture('/media/luohwu/T7/EpicKitchen/videos/P01/P01_02.m4v')
     # vidcap = cv2.VideoCapture('/home/luohwu/Videos/P01_02.mp4')
     if not vidcap.isOpened():
         print(f'failde opening video')
@@ -107,27 +108,43 @@ def extract_frames_from_video():
     while True:
         # vidcap.set(cv2.CAP_PROP_POS_MSEC, (count * 1000))  # added this line
         success, image = vidcap.read()
-        count+=1
+        count += 1
+        if success:
+            if count in frames:
+                cv2.imwrite(f'/media/luohwu/T7/EpicKitchen/videos/P01/P01_02/frame_{str(count).zfill(10)}.jpg',image)
+
+            # cv2.imshow('frame',image)
+        else:
+            print('fail reading')
+            break
+        if count==frames[-1]:
+            break
+
         # print(count)
-        if count in frames:
-            # print(count)
-            if success==False:
-                print(f'frame {count}: ', success)
-            else:
-                print(f'frame {count}: ')
-                cv2.imwrite(
-                    f"/media/luohwu/T7/dataset/EPIC/output_frames_HD/P01/P01_01/frame_{str(count).zfill(10)}.jpg",
-                    image)  # save frame as JPEG file
-                if count==frames[-1]:
-                    break
+        # if count in frames:
+        #     # print(count)
+        #     if success==False:
+        #         print(f'frame {count}: ', success)
+        #     else:
+        #         print(f'frame {count}: ')
+        #         cv2.imwrite(
+        #             f"/media/luohwu/T7/dataset/EPIC/output_frames_HD/P01/P01_01/frame_{str(count).zfill(10)}.jpg",
+        #             image)  # save frame as JPEG file
+        #         if count==frames[-1]:
+        #             break
 
 if __name__=='__main__':
 
     print('main')
-    #create dir for selected .tar files
-    make_dirs()
+    # m tar files
+    ########################################################################
+    # #create dir for selected .tar files
+    # make_dirs()
+    #
+    # # move only needed .tar files to our target dir
+    # # move_tars()
+    #
+    # extract_frames_from_tar(basic_only=False)
 
-    # move only needed .tar files to our target dir
-    # move_tars()
-
-    extract_frames_from_tar(basic_only=False)
+    # from video
+    extract_frames_from_video()

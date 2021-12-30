@@ -64,7 +64,9 @@ if args.dataset == 'ADL':
         test_video_id = ['P_12']
 
 else:
-    id = {'P01P01_01', 'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
+    id = {
+          # 'P01P01_01', 'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
+          'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
           'P01P01_06', 'P01P01_07', 'P01P01_08', 'P01P01_09', 'P01P01_10',
           'P01P01_16', 'P01P01_17', 'P01P01_18', 'P01P01_19', 'P02P02_01',
           'P02P02_02', 'P02P02_03', 'P02P02_04', 'P02P02_05', 'P02P02_06',
@@ -137,6 +139,7 @@ else:
          'P21P21_03', 'P20P20_01', 'P08P08_01', 'P06P06_09', 'P22P22_15',
          'P26P26_03'}
     train_video_id = id - test_video_id
+    test_video_id={'P01P01_02'}
     args.data_path = os.path.join(args.data_path, 'EPIC')
     annos_path = 'nao_annotations'
     frames_path = 'rgb_frames'

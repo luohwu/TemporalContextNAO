@@ -15,6 +15,7 @@ import cv2
 from tools.comparison import generate_comparison
 import numpy as np
 from tools.Schedulers import *
+from model.IntentNetAttention import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
@@ -23,6 +24,7 @@ experiment = Experiment(
     auto_metric_logging=False
 )
 experiment.log_code(file_name="model/IntentNet.py")
+experiment.log_code(file_name="model/IntentNetAttention.py")
 experiment.log_code(file_name="data/dataset.py")
 experiment.log_parameters(args.__dict__)
 SEED = args.seed
@@ -50,12 +52,15 @@ def main():
     #     p.requires_grad=False
 
     # model=IntentNetFuse()
-    model=IntentNetFullAttention()
-    # model=IntentNetFuseAttentionVector()
+    # model=IntentNetFullAttention()
+    model=IntentNetDataAttentionCat()
+    # model=Intent
     # model = IntentNetFuseAttentionMatrix()
     # model = IntentNetIC()
-    # for p in model.temporal_context.parameters():
-    #     p.requires_grad=False
+    for p in model.visual_feature.parameters():
+        p.requires_grad=False
+    for p in model.visual_feature2.parameters():
+        p.requires_grad=False
     # cnt=0
     # for child in model.temporal_context.children():
     #     cnt+=1
@@ -65,7 +70,8 @@ def main():
 
     # for p in model.temporal_context_extractor.parameters():
     #     p.requires_grad = False
-
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f'model size: {total_params}')
     if multi_gpu == True:
         model = nn.DataParallel(model)
     model = model.to(device)
@@ -122,7 +128,7 @@ def main():
     # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=False)
     # scheduler=CosExpoScheduler(optimizer,switch_step=100,eta_min=4e-5,gamma=0.995,min_lr=1e-6)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100,T_mult=2, eta_min=4e-5, verbose=True)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=100,T_mult=2,eta_min=4e-5,decay_rate=0.5)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=200,T_mult=2,eta_min=4e-5,decay_rate=0.5)
     """"
     Heatmap version
     """

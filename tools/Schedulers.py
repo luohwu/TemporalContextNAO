@@ -105,29 +105,38 @@ class MinimumExponentialLR(torch.optim.lr_scheduler.ExponentialLR):
 
 if __name__=='__main__':
     model=torchvision.models.resnet18(pretrained=False)
-    epochs = 10000
+    epochs = 1000
     ################################################################################
-    optimizer = torch.optim.SGD(model.parameters(), lr=3e-4, momentum=0.9)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, eta_min=4e-5, verbose=False)
-    lrs = []
-    for epoch in range(epochs):
-        lrs.append(optimizer.param_groups[0]['lr'])
-        scheduler.step()
-    plt.plot(lrs)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, eta_min=4e-5, verbose=False)
+    # lrs = []
+    # for epoch in range(epochs):
+    #     lrs.append(optimizer.param_groups[0]['lr'])
+    #     scheduler.step()
+    # plt.plot(lrs)
 
     ################################################################################
-    optimizer = torch.optim.SGD(model.parameters(), lr=3e-4, momentum=0.9)
-    scheduler=CosExpoScheduler(optimizer, switch_step=100, eta_min=4e-5, verbose=False)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
+    # scheduler=CosExpoScheduler(optimizer, switch_step=100, eta_min=4e-5, verbose=False)
+    # lrs = []
+    # for epoch in range(epochs):
+    #     lrs.append(optimizer.param_groups[0]['lr'])
+    #     scheduler.step()
+    # print(f'last lr: {lrs[-1]}')
+    # plt.plot(lrs)
+
+    ################################################################################
+    optimizer = torch.optim.SGD(model.parameters(), lr=2e-4, momentum=0.9)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=4e-5,decay_rate=0.5)
     lrs = []
     for epoch in range(epochs):
         lrs.append(optimizer.param_groups[0]['lr'])
         scheduler.step()
     print(f'last lr: {lrs[-1]}')
     plt.plot(lrs)
-
     ################################################################################
-    optimizer = torch.optim.SGD(model.parameters(), lr=3e-4, momentum=0.9)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=100,eta_min=4e-7,decay_rate=0.5,T_mult=2)
+    optimizer = torch.optim.SGD(model.parameters(), lr=2e-4, momentum=0.9)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=200,T_mult=2,eta_min=4e-5,decay_rate=0.5)
     lrs = []
     for epoch in range(epochs):
         lrs.append(optimizer.param_groups[0]['lr'])

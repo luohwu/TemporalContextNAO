@@ -9,7 +9,7 @@ import cv2
 
 def make_dirs():
     output_dir='/media/luohwu/T7/dataset/ADL/rgb_frames/'
-    video_id_list=sorted(ids_adl)
+    video_id_list=sorted(id)
     for video_id in video_id_list:
         video_id=video_id
         target_dir=os.path.join(output_dir,video_id)

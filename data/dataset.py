@@ -26,7 +26,7 @@ class AddGaussianNoise(object):
 
 
 def make_sequence_dataset(mode='train',dataset_name='ADL'):
-
+    print(f'dataset name: {dataset_name}')
     #val is the same as test
     if mode=='all':
         par_video_id_list=id
@@ -123,7 +123,6 @@ class NAODataset(Dataset):
         # path where images are stored
         img_dir = df_item.img_path
         previous_frames=[]
-        # for i in range(0,1):
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             img=Image.open(os.path.join(img_dir,image_name))
@@ -149,6 +148,7 @@ class NAODataset(Dataset):
 
 
         return previous_frames,current_frame_tensor, torch.tensor(nao_bbox),current_frame_path
+        # return 1, current_frame_tensor, torch.tensor(nao_bbox), current_frame_path
 
     def __len__(self):
         return self.data.shape[0]
@@ -172,15 +172,15 @@ def ini_datasets(dataset_name='ADL',original_split=False):
 
 
 if __name__ == '__main__':
-    train_dataset,val_dataset=ini_datasets(dataset_name='ADL',original_split=False)
-    # train_dataset = NAODataset(mode='train',data=train_data)
+    # train_dataset,val_dataset=ini_datasets(dataset_name='ADL',original_split=False)
+    train_dataset = NAODataset(mode='train',dataset_name=args.dataset)
     print(train_dataset.data.head())
     # train_dataset.data.to_csv('/media/luohwu/T7/dataset/EPIC/test.csv')
     train_dataloader = DataLoader(train_dataset, batch_size=1,
                                   num_workers=8, shuffle=False,pin_memory=True)
     print(f'start traversing the dataloader')
     start = time.time()
-    for epoch in range(10):
+    for epoch in range(1):
 
         for data in train_dataloader:
             previous_frames,current_frame,nao_bbox,current_frame_path=data
@@ -199,11 +199,13 @@ if __name__ == '__main__':
             cv2.imwrite('test.jpg',current_frame_example)
             cv2_image=cv2.imread('test.jpg')
             cv2_image=cv2.cvtColor(cv2_image,cv2.COLOR_BGR2RGB)
-            nao_bbox_example=nao_bbox[0]
+            nao_bbox_example=nao_bbox[0].numpy()
             cv2.rectangle(cv2_image,(nao_bbox_example[0],nao_bbox_example[1]),(nao_bbox_example[2],nao_bbox_example[3]),(255,0,0),3)
             #
-            cv2.imshow('example',cv2_image)
+            cv2.imshow(f'{current_frame_path[0][-10:-4]}',cv2_image)
             cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
 
     end = time.time()
     print(f'used time: {end-start}')

@@ -8,7 +8,15 @@ def resize_bbox(row,height,width):
     bbox=row["nao_bbox"]
     new_bbox= [bbox[0]/width*456,bbox[1]/height*256,bbox[2]/width*456,bbox[3]/height*256]
 
-    return [round(coord) for coord in new_bbox]
+    new_bbox= [round(coord) for coord in new_bbox]
+    new_bbox[0] = 455 if new_bbox[0] > 455 else new_bbox[0]
+    new_bbox[2] = 455 if new_bbox[2] > 455 else new_bbox[2]
+    new_bbox[1] = 255 if new_bbox[1] > 255 else new_bbox[1]
+    new_bbox[3] = 255 if new_bbox[3] > 255 else new_bbox[3]
+    # return bbox
+    return new_bbox
+
+
 
 
 # given each video's resolution and fps
@@ -36,6 +44,8 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
             if annotations.shape[0] > 0:
                 annotations['participant_id'] = annotations.apply(lambda row: row["id"][0:3], axis=1)
                 annotations['video_id'] = annotations.apply(lambda row: row["id"][3:], axis=1)
+                # annotations['frame'] = annotations.apply(lambda row: row["frame"]-30, axis=1)
+
                 annotations['fps'] = fps
                 # print(previous_frames_helper)
                 annotations['previous_frames'] = annotations.apply(
