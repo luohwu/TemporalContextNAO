@@ -1,4 +1,4 @@
-# model settings
+# models settings
 model = dict(
     type='PEM',
     pem_feat_dim=32,

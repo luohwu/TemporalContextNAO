@@ -19,7 +19,7 @@ parser.add_argument('--C3D',default=False,action='store_true',
 
 
 parser.add_argument('--exp_name', default='exp_name', type=str,
-                    help='experiment path (place to store model and logs)')
+                    help='experiment path (place to store models and logs)')
 
 parser.add_argument('--img_size', default=[256, 456],
                     help='image size: [H, W]')  #
@@ -52,7 +52,7 @@ if args.dataset == 'ADL':
 
     val_video_id=test_video_id = ['P_05', 'P_04', 'P_07', 'P_10', 'P_16']
     train_video_id = id - set(val_video_id)
-    test_video_id = val_video_id
+    test_video_id = ['P_07','P_08','P_11','P_18','P_19']
 
     args.data_path = os.path.join(args.data_path,'ADL')
     annos_path = 'nao_annotations'

@@ -167,15 +167,15 @@ class UNetResNet18(nn.Module):
 
 if __name__ == '__main__':
     from torchsummary import summary
-    # model = resnet34()
+    # models = resnet34()
     # summary(your_model, input_size=(channels, H, W))
     model = UNetResNet18()
-    # model = UNetVGG16()
-    # model = ResNetEncoderDecoder()
-    # model = UNetResNet18AdlDrop()
-    # summary(model.cuda(), input_size=(3, 512, 512))
+    # models = UNetVGG16()
+    # models = ResNetEncoderDecoder()
+    # models = UNetResNet18AdlDrop()
+    # summary(models.cuda(), input_size=(3, 512, 512))
     img=torch.rand((2,3, 224, 224))
     output=model(img)
     print(f'shape of output: {output.shape}')
-    # summary(model, input_size=(3, 224, 224))  # 被32整除
+    # summary(models, input_size=(3, 224, 224))  # 被32整除
 

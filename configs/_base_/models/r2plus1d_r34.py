@@ -1,4 +1,4 @@
-# model settings
+# models settings
 model = dict(
     type='Recognizer3D',
     backbone=dict(
@@ -23,6 +23,6 @@ model = dict(
         spatial_type='avg',
         dropout_ratio=0.5,
         init_std=0.01),
-    # model training and testing settings
+    # models training and testing settings
     train_cfg=None,
     test_cfg=dict(average_clips='prob'))

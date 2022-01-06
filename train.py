@@ -8,14 +8,14 @@ from data.dataset import *
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS,CIOU_LOSS2,cal_acc_f1
-from model.IntentNet import *
+from models.IntentNet import *
 from torch import  nn
 import pandas as pd
 import cv2
 from tools.comparison import generate_comparison
 import numpy as np
 from tools.Schedulers import *
-from model.IntentNetAttention import *
+from models.IntentNetAttention import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
@@ -23,8 +23,8 @@ experiment = Experiment(
     workspace="thesisproject",
     auto_metric_logging=False
 )
-experiment.log_code(file_name="model/IntentNet.py")
-experiment.log_code(file_name="model/IntentNetAttention.py")
+experiment.log_code(file_name="models/IntentNet.py")
+experiment.log_code(file_name="models/IntentNetAttention.py")
 experiment.log_code(file_name="data/dataset.py")
 experiment.log_parameters(args.__dict__)
 SEED = args.seed
@@ -44,6 +44,7 @@ os.system('lspci | grep VGA')
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+
 def main():
     # model=IntentNet()
 
@@ -53,14 +54,14 @@ def main():
 
     # model=IntentNetFuse()
     # model=IntentNetFullAttention()
-    model=IntentNetDataAttentionCat()
-    # model=Intent
-    # model = IntentNetFuseAttentionMatrix()
+    # model=IntentNetDataAttention()
+    # model=IntentNetBase()
+    model = IntentNetFuseAttentionVector()
     # model = IntentNetIC()
-    for p in model.visual_feature.parameters():
-        p.requires_grad=False
-    for p in model.visual_feature2.parameters():
-        p.requires_grad=False
+    # for p in model.visual_feature.parameters():
+    #     p.requires_grad=False
+    # for p in model.visual_feature2.parameters():
+    #     p.requires_grad=False
     # cnt=0
     # for child in model.temporal_context.children():
     #     cnt+=1
@@ -128,7 +129,7 @@ def main():
     # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=False)
     # scheduler=CosExpoScheduler(optimizer,switch_step=100,eta_min=4e-5,gamma=0.995,min_lr=1e-6)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100,T_mult=2, eta_min=4e-5, verbose=True)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=200,T_mult=2,eta_min=4e-5,decay_rate=0.5)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=200,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
     """"
     Heatmap version
     """
@@ -157,12 +158,13 @@ def main():
         test_loss_list.append(test_loss)
         if epoch % epoch_save == 0:
             checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
+            print(checkpoint_path)
 
-            # torch.save({'epoch': epoch,
-            #             'model_state_dict': model.state_dict(),
-            #             'optimizer_state_dict': optimizer.state_dict()
-            #             },
-            #            checkpoint_path)
+            torch.save({'epoch': epoch,
+                        'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict()
+                        },
+                       checkpoint_path)
             test(test_dataloader, model, criterion, epoch, illustration=True)
             if isinstance(model,IntentNetFullAttention):
                 print(f'attention vector: {torch.nn.functional.softmax(model.attention_vector, dim=0)}')
@@ -178,15 +180,14 @@ def train(train_dataloader, model, criterion, optimizer,epoch):
 
     len_dataset = len(train_dataloader.dataset)
     for i, data in enumerate(train_dataloader, start=1):
-        previous_frames,current_frame, nao_bbox, img_path = data
+        frames, nao_bbox, img_path = data
         # print(f'previous_frames:{previous_frames.shape}, cur_frame: {current_frame.shape}')
-        previous_frames=previous_frames.to(device)
-        current_frame=current_frame.to(device)
+        frames=frames.to(device)
         nao_bbox=nao_bbox.to(device)
 
         #forward
-        outputs = model(previous_frames,current_frame)
-        del previous_frames,current_frame
+        outputs = model(frames)
+        del frames
 
         # loss and acc
         loss, acc,f1,_ = criterion(outputs, nao_bbox)
@@ -222,13 +223,12 @@ def test(test_dataloader, model, criterion, epoch, illustration):
     len_dataset = len(test_dataloader.dataset)
     with torch.no_grad():
         for i, data in enumerate(test_dataloader):
-            previous_frames,current_frame,nao_bbox, img_path = data
-            previous_frames=previous_frames.to(device)
-            current_frame=current_frame.to(device)
+            frames,nao_bbox, img_path = data
+            frames=frames.to(device)
             nao_bbox=nao_bbox.to(device)
 
-            outputs = model(previous_frames,current_frame)
-            del previous_frames,current_frame
+            outputs = model(frames)
+            del frames
 
 
             loss, acc,f1,conf_matrix = criterion(outputs, nao_bbox)

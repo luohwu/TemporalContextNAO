@@ -4,7 +4,7 @@ from video_swin_transformer import SwinTransformer3D
 
 
 '''
-initialize a SwinTransformer3D model
+initialize a SwinTransformer3D models
 '''
 model = SwinTransformer3D()
 print(model)
@@ -39,13 +39,13 @@ use the pretrained SwinTransformer3D as feature extractor
 # dummy_x = torch.rand(1, 3, 32, 224, 224)
 #
 # # SwinTransformer3D without cls_head
-# backbone = model.backbone
+# backbone = models.backbone
 #
 # # [batch_size, hidden_dim, temporal_dim/2, height/32, width/32]
 # feat = backbone(dummy_x)
 #
 # # alternative way
-# feat = model.extract_feat(dummy_x)
+# feat = models.extract_feat(dummy_x)
 #
 # # mean pooling
 # feat = feat.mean(dim=[2,3,4]) # [batch_size, hidden_dim]

@@ -1,4 +1,4 @@
-# model settings
+# models settings
 model = dict(
     type='AudioRecognizer',
     backbone=dict(
@@ -13,6 +13,6 @@ model = dict(
         in_channels=1024,
         dropout_ratio=0.5,
         init_std=0.01),
-    # model training and testing settings
+    # models training and testing settings
     train_cfg=None,
     test_cfg=dict(average_clips='prob'))

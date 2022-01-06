@@ -8,7 +8,7 @@ from data.dataset_heatmap import *
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS,CIOU_LOSS2,cal_acc_f1
-from model.IntentNet import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetIC,IntentNetFuseAttentionVector,IntentNetFuseHeatmap
+from models.IntentNet import IntentNet,IntentNetSwin,IntentNetFuse,IntentNetIC,IntentNetFuseAttentionVector,IntentNetFuseHeatmap
 from torch import  nn
 import pandas as pd
 import cv2
@@ -22,7 +22,7 @@ experiment = Experiment(
     workspace="thesisproject",
     auto_metric_logging=False
 )
-experiment.log_code(file_name="model/IntentNet.py")
+experiment.log_code(file_name="models/IntentNet.py")
 experiment.log_parameters(args.__dict__)
 SEED = args.seed
 torch.manual_seed(SEED)
@@ -42,25 +42,25 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    # model=IntentNet()
+    # models=IntentNet()
 
-    # model=IntentNetSwin(time_length=10)
-    # for p in model.temporal_context_extractor.parameters():
+    # models=IntentNetSwin(time_length=10)
+    # for p in models.temporal_context_extractor.parameters():
     #     p.requires_grad=False
 
-    # model=IntentNetFuse()
+    # models=IntentNetFuse()
     model=IntentNetFuseHeatmap()
-    # model = IntentNetIC()
-    # for p in model.temporal_context.parameters():
+    # models = IntentNetIC()
+    # for p in models.temporal_context.parameters():
     #     p.requires_grad=False
     # cnt=0
-    # for child in model.temporal_context.children():
+    # for child in models.temporal_context.children():
     #     cnt+=1
     #     if cnt<=4:
     #         for p in child.parameters():
     #             p.requires_grad=False
 
-    # for p in model.temporal_context_extractor.parameters():
+    # for p in models.temporal_context_extractor.parameters():
     #     p.requires_grad = False
 
     if multi_gpu == True:
@@ -150,7 +150,7 @@ def main():
             checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
 
             # torch.save({'epoch': epoch,
-            #             'model_state_dict': model.state_dict(),
+            #             'model_state_dict': models.state_dict(),
             #             'optimizer_state_dict': optimizer.state_dict()
             #             },
             #            checkpoint_path)
@@ -175,7 +175,7 @@ def train(train_dataloader, model, criterion, optimizer, epoch):
         del previous_frames,current_frame
         # forward
         # print(f'output size:{outputs.shape}')
-        # outputs = model(hand_hm)
+        # outputs = models(hand_hm)
         predictions_all.append(outputs.data.max(1)[1].cpu().numpy())  # outputs.data.max(1)[1] of shape [Batch_size, height, width]
 
         targets_all.append(nao_mask.data.cpu().squeeze(0))

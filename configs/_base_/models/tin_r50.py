@@ -1,4 +1,4 @@
-# model settings
+# models settings
 model = dict(
     type='Recognizer2D',
     backbone=dict(
@@ -16,6 +16,6 @@ model = dict(
         dropout_ratio=0.5,
         init_std=0.001,
         is_shift=False),
-    # model training and testing settings
+    # models training and testing settings
     train_cfg=None,
     test_cfg=dict(average_clips=None))

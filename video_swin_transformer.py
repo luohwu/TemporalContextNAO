@@ -582,15 +582,15 @@ class SwinTransformer3D(nn.Module):
     def inflate_weights(self, logger):
         """Inflate the swin2d parameters to swin3d.
         The differences between swin3d and swin2d mainly lie in an extra
-        axis. To utilize the pretrained parameters in 2d model,
-        the weight of swin2d model should be inflated to fit in the shapes of
+        axis. To utilize the pretrained parameters in 2d models,
+        the weight of swin2d models should be inflated to fit in the shapes of
         the 3d counterpart.
         Args:
             logger (logging.Logger): The logger used to print
                 debugging infomation.
         """
         checkpoint = torch.load(self.pretrained, map_location='cpu')
-        state_dict = checkpoint['model']
+        state_dict = checkpoint['models']
 
         # delete relative_position_index since we always re-init it
         relative_position_index_keys = [k for k in state_dict.keys() if "relative_position_index" in k]
@@ -650,13 +650,13 @@ class SwinTransformer3D(nn.Module):
         if isinstance(self.pretrained, str):
             self.apply(_init_weights)
             logger = get_root_logger()
-            logger.info(f'load model from: {self.pretrained}')
+            logger.info(f'load models from: {self.pretrained}')
 
             if self.pretrained2d:
-                # Inflate 2D model into 3D model.
+                # Inflate 2D models into 3D models.
                 self.inflate_weights(logger)
             else:
-                # Directly load 3D model.
+                # Directly load 3D models.
                 load_checkpoint(self, self.pretrained, strict=False, logger=logger)
         elif self.pretrained is None:
             self.apply(_init_weights)
@@ -679,6 +679,6 @@ class SwinTransformer3D(nn.Module):
         return x
 
     def train(self, mode=True):
-        """Convert the model into training mode while keep layers freezed."""
+        """Convert the models into training mode while keep layers freezed."""
         super(SwinTransformer3D, self).train(mode)
         self._freeze_stages()

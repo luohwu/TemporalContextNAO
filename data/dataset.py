@@ -122,17 +122,15 @@ class NAODataset(Dataset):
 
         # path where images are stored
         img_dir = df_item.img_path
-        previous_frames=[]
+        frames=[]
         for i in range(0,len(df_item.previous_frames)):
             image_name=f'frame_{str(df_item.previous_frames[i]).zfill(10)}.jpg'
             img=Image.open(os.path.join(img_dir,image_name))
             # if rand_num > 0.5:
             #     img = ImageOps.mirror(img)
             img=self.transform_previous_frames(img)
-            previous_frames.append(img)
+            frames.append(img)
             del img
-        previous_frames=torch.stack(previous_frames)
-        previous_frames=previous_frames.transpose(0,1)
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
         current_frame=Image.open(current_frame_path)
         # if rand_num>0.5:
@@ -144,11 +142,36 @@ class NAODataset(Dataset):
         # print(f'new bbox: {nao_bbox}')
 
         current_frame_tensor=self.transform(current_frame)
+        frames.append(current_frame_tensor)
+        # print(f'shape of current frame: {current_frame_tensor.shape}')
         del current_frame
 
+        frames_tensor=torch.stack(frames)
+        del frames
+        # print(f'shape of frames{frames_tensor.shape}')
 
-        return previous_frames,current_frame_tensor, torch.tensor(nao_bbox),current_frame_path
+
+        return frames_tensor, torch.tensor(nao_bbox),current_frame_path
         # return 1, current_frame_tensor, torch.tensor(nao_bbox), current_frame_path
+
+    def __len__(self):
+        return self.data.shape[0]
+
+class NAODatasetCAM(Dataset):
+    def __init__(self, mode='train',dataset_name='ADL'):
+        self.mode=mode
+        self.data = make_sequence_dataset(mode,dataset_name)
+
+    def __getitem__(self, item):
+        df_item = self.data.iloc[item, :]
+
+        # path where images are stored
+        img_dir = df_item.img_path
+        current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
+
+
+
+        return current_frame_path
 
     def __len__(self):
         return self.data.shape[0]
@@ -183,7 +206,7 @@ if __name__ == '__main__':
     for epoch in range(1):
 
         for data in train_dataloader:
-            previous_frames,current_frame,nao_bbox,current_frame_path=data
+            frames,nao_bbox,current_frame_path=data
             # print(f'previous frames shape: {previous_frames.shape}')
             # print(f'current_frame shape: {current_frame.shape}')
             print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
@@ -194,17 +217,17 @@ if __name__ == '__main__':
             test data and annotations
             need to undo-resize first !!!
             """
-            current_frame_example=current_frame[0].permute(1,2,0).numpy()
-            current_frame_example*=255
-            cv2.imwrite('test.jpg',current_frame_example)
-            cv2_image=cv2.imread('test.jpg')
-            cv2_image=cv2.cvtColor(cv2_image,cv2.COLOR_BGR2RGB)
-            nao_bbox_example=nao_bbox[0].numpy()
-            cv2.rectangle(cv2_image,(nao_bbox_example[0],nao_bbox_example[1]),(nao_bbox_example[2],nao_bbox_example[3]),(255,0,0),3)
-            #
-            cv2.imshow(f'{current_frame_path[0][-10:-4]}',cv2_image)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            # current_frame_example=current_frame[0].permute(1,2,0).numpy()
+            # current_frame_example*=255
+            # cv2.imwrite('test.jpg',current_frame_example)
+            # cv2_image=cv2.imread('test.jpg')
+            # cv2_image=cv2.cvtColor(cv2_image,cv2.COLOR_BGR2RGB)
+            # nao_bbox_example=nao_bbox[0].numpy()
+            # cv2.rectangle(cv2_image,(nao_bbox_example[0],nao_bbox_example[1]),(nao_bbox_example[2],nao_bbox_example[3]),(255,0,0),3)
+            # #
+            # cv2.imshow(f'{current_frame_path[0][-10:-4]}',cv2_image)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
 
 
     end = time.time()

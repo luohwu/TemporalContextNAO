@@ -105,9 +105,9 @@ class MinimumExponentialLR(torch.optim.lr_scheduler.ExponentialLR):
 
 if __name__=='__main__':
     model=torchvision.models.resnet18(pretrained=False)
-    epochs = 1000
+    epochs = 200
     ################################################################################
-    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
+    # optimizer = torch.optim.SGD(models.parameters(), lr=1e-4, momentum=0.9)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, eta_min=4e-5, verbose=False)
     # lrs = []
     # for epoch in range(epochs):
@@ -116,7 +116,7 @@ if __name__=='__main__':
     # plt.plot(lrs)
 
     ################################################################################
-    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
+    # optimizer = torch.optim.SGD(models.parameters(), lr=1e-4, momentum=0.9)
     # scheduler=CosExpoScheduler(optimizer, switch_step=100, eta_min=4e-5, verbose=False)
     # lrs = []
     # for epoch in range(epochs):
@@ -127,7 +127,7 @@ if __name__=='__main__':
 
     ################################################################################
     optimizer = torch.optim.SGD(model.parameters(), lr=2e-4, momentum=0.9)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=4e-5,decay_rate=0.5)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=200,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
     lrs = []
     for epoch in range(epochs):
         lrs.append(optimizer.param_groups[0]['lr'])
@@ -136,7 +136,7 @@ if __name__=='__main__':
     plt.plot(lrs)
     ################################################################################
     optimizer = torch.optim.SGD(model.parameters(), lr=2e-4, momentum=0.9)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=200,T_mult=2,eta_min=4e-5,decay_rate=0.5)
+    scheduler = DecayCosinWarmRestars(optimizer, T_0=1200, T_mult=2, eta_min=4e-5, decay_rate=0.5,verbose=True)
     lrs = []
     for epoch in range(epochs):
         lrs.append(optimizer.param_groups[0]['lr'])
