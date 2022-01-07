@@ -1,4 +1,7 @@
 import warnings
+
+import matplotlib.pyplot as plt
+
 warnings.filterwarnings('ignore')
 warnings.simplefilter('ignore')
 import cv2
@@ -74,7 +77,7 @@ model_base.load_state_dict(
 )
 model.load_state_dict(
     torch.load(
-        '/mnt/euler/experiments/ADL/temporal_bbox/ckpts/model_epoch_150.pth',
+        '/mnt/euler/experiments/ADL/temporal_bbox_vector/ckpts/model_epoch_250.pth',
         map_location=device
     )['model_state_dict']
 )
@@ -82,7 +85,7 @@ model_base.eval().to(device)
 model.eval().to(device)
 dataset=NAODatasetCAM(mode='test',dataset_name='ADL')
 for data in dataset:
-    image_path=data
+    image_path, gt_bbox=data
     image=Image.open(image_path)
     image_float_np=np.array(image,dtype=np.float32)/255
     img_tensor=transform(image)
@@ -106,23 +109,35 @@ for data in dataset:
 
     targets=[IntentNetTarget(bounding_boxes=output)]
     # targets = [FasterRCNNBoxScoreTarget(labels=labels, bounding_boxes=boxes)]
-    with GradCAM(model_base,target_layers,use_cuda=torch.cuda.is_available()) as cam_base, GradCAM(model,target_layers,use_cuda=torch.cuda.is_available()) as cam:
+    with GradCAM(model_base,target_layers_base,use_cuda=torch.cuda.is_available()) as cam_base, GradCAM(model,target_layers,use_cuda=torch.cuda.is_available()) as cam:
 
-        grayscale_cam = cam(input_tensor, targets=targets)
+        grayscale_cam_base = cam_base(input_tensor, targets=targets)
         grayscale_cam = cam(input_tensor, targets=targets)
 
-        grayscale_cam=scale_cam_image(grayscale_cam,(456,256))
+        grayscale_cam_base=scale_cam_image(grayscale_cam_base,(456,256))
+        grayscale_cam = scale_cam_image(grayscale_cam, (456, 256))
         # # Take the first image in the batch:
+        grayscale_cam_base = grayscale_cam_base[0, :]
         grayscale_cam = grayscale_cam[0, :]
+
+        cam_image_base = show_cam_on_image(image_float_np, grayscale_cam_base, use_rgb=True)
         cam_image = show_cam_on_image(image_float_np, grayscale_cam, use_rgb=True)
 
-        cam_image=draw_boxes(output,cam_image)
+        cam_image_base=draw_boxes(output_base,cam_image_base)
+        cam_image = draw_boxes(output, cam_image)
+        image = draw_boxes(gt_bbox.unsqueeze(0), np.array(image))
 
-        cam_image = np.concatenate((cam_image, np.array(image)), axis=1)
+
+        cam_image = np.concatenate((cam_image,cam_image_base, (image)), axis=1)
 
         window_name=image_path[-25:]
         image_display=cv2.cvtColor(cam_image,cv2.COLOR_RGB2BGR)
         cv2.imshow(window_name,image_display)
+        frame_contribution=torch.nn.functional.softmax(model.attention_vector,dim=0).detach().numpy()
+        plt.plot(frame_contribution)
+        plt.ylabel('frame contribution')
+        plt.xlabel('frame index')
+        plt.show()
         key=cv2.waitKey(0) & 0xFF
         if key==ord('s'):
             save_path=os.path.join('/media/luohwu/T7/experiments/grad_cam',window_name)
@@ -131,10 +146,13 @@ for data in dataset:
                 img=image_display
             )
             cv2.destroyAllWindows()
+            plt.close()
         elif key==ord('q'):
             cv2.destroyAllWindows()
+            plt.close()
             break
         else:
             cv2.destroyAllWindows()
+            plt.close()
             continue
 

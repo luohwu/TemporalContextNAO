@@ -168,10 +168,10 @@ class NAODatasetCAM(Dataset):
         # path where images are stored
         img_dir = df_item.img_path
         current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
+        nao_bbox = df_item.nao_bbox
 
 
-
-        return current_frame_path
+        return current_frame_path,torch.tensor(nao_bbox)
 
     def __len__(self):
         return self.data.shape[0]

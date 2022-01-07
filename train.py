@@ -54,9 +54,9 @@ def main():
 
     # model=IntentNetFuse()
     # model=IntentNetFullAttention()
-    # model=IntentNetDataAttention()
+    model=IntentNetDataAttention()
     # model=IntentNetBase()
-    model = IntentNetFuseAttentionVector()
+    # model = IntentNetFuseAttentionVector()
     # model = IntentNetIC()
     # for p in model.visual_feature.parameters():
     #     p.requires_grad=False
@@ -129,7 +129,7 @@ def main():
     # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=False)
     # scheduler=CosExpoScheduler(optimizer,switch_step=100,eta_min=4e-5,gamma=0.995,min_lr=1e-6)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100,T_mult=2, eta_min=4e-5, verbose=True)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=200,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
     """"
     Heatmap version
     """

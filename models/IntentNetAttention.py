@@ -108,8 +108,9 @@ class IntentNetDataAttention(nn.Module):
 
     # previous_frames: [batch_size, channel, temporal_dim, height, width]
     # current frame: [batch_sze, channel, height, width]
-    def forward(self,previous_frames,current_frame):
-        previous_frames=previous_frames.transpose(1,2)
+    def forward(self,frames):
+        previous_frames=frames[:,:-1]
+        current_frame=frames[:,-1].squeeze(1)
         B,T,C,H,W=previous_frames.shape
 
         previous_frames=previous_frames.reshape(-1,C,H,W) # [B*T, C, H, W]
@@ -461,10 +462,12 @@ if __name__=='__main__':
     # attention=Attention(dim=512,num_heads=8,depth=6)
     # print(attention(x).shape)
 
-    model=IntentNetDataAttentionSW()
+    model=IntentNetDataAttention()
     total_params = sum(p.numel() for p in model.parameters())
     print(f'model size: {total_params}')
-    previous_frames=torch.rand(2, 3, 10, 224, 224)
-    current_frame=torch.rand(2,3,224,224)
-    output=model(previous_frames,current_frame)
+    frames = torch.rand(2, 11, 3, 224, 224)
+    output=model(frames)
+    # outputs_history=models(previous_frames)
+    # print(outputs_history.shape)
     print(output.shape)
+
