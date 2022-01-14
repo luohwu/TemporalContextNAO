@@ -22,6 +22,15 @@ class IntentNetBase(nn.Module):
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(1),
+            # nn.AdaptiveAvgPool1d(512),
+
+            # nn.Linear(2048,512),
+            # nn.Dropout(0.5),
+            # nn.ReLU(),
+            # nn.Linear(1024,512),
+            # nn.Dropout(0.5),
+            # nn.ReLU(),
+
             nn.Linear(512,256),
             nn.Dropout(0.5),
             nn.ReLU(),
@@ -44,7 +53,7 @@ class IntentNetBase(nn.Module):
         # print(f'visual feature shape: {visual_feature.shape}')
         head=self.head(visual_feature)
         # print(f'head shape: {head.shape}')
-        return head*torch.tensor([456,256,456,256]).to(device)
+        return head*torch.tensor([456,256,456,256])
 
 
 
@@ -786,7 +795,7 @@ if __name__=='__main__':
 
     # models=IntentNetIC()
     # models=IntentNetFuseAttentionMatrix()
-    model=IntentNetFuseAttentionVector()
+    model=IntentNetBase()
     # models = IntentNetSwin(time_length=10)
     # num_params_temporal_context_extractor=sum(p.numel() for p in models.temporal_context_extractor.parameters())
     total_params = sum(p.numel() for p in model.parameters())

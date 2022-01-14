@@ -16,6 +16,7 @@ from tools.comparison import generate_comparison
 import numpy as np
 from tools.Schedulers import *
 from models.IntentNetAttention import *
+from data.dataset_razvan import NAODatasetR
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
@@ -81,11 +82,11 @@ def main():
         train_dataset = NAODataset(mode='train', dataset_name=args.dataset)
         test_dataset = NAODataset(mode='test', dataset_name=args.dataset)
     else:
-        all_data = NAODataset(mode='all', dataset_name=args.dataset)
+        all_data = NAODatasetR(mode='all', dataset_name=args.dataset)
         if args.dataset == 'ADL':
             train_dataset, test_dataset = torch.utils.data.random_split(all_data, [1767, 450],generator=torch.Generator().manual_seed(args.seed))
         else:
-            train_dataset, test_dataset = torch.utils.data.random_split(all_data, [8589, 3000],generator=torch.Generator().manual_seed(args.seed))
+            train_dataset, test_dataset = torch.utils.data.random_split(all_data, [9782, 3296],generator=torch.Generator().manual_seed(args.seed))
 
     # train_dataset, test_dataset = ini_datasets(dataset_name=args.dataset, original_split=args.original_split)
 
@@ -129,7 +130,7 @@ def main():
     # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=False)
     # scheduler=CosExpoScheduler(optimizer,switch_step=100,eta_min=4e-5,gamma=0.995,min_lr=1e-6)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100,T_mult=2, eta_min=4e-5, verbose=True)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
+    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=1e-6,decay_rate=0.5,verbose=True)
     """"
     Heatmap version
     """
@@ -161,8 +162,8 @@ def main():
             print(checkpoint_path)
 
             torch.save({'epoch': epoch,
-                        'model_state_dict': model.state_dict(),
-                        'optimizer_state_dict': optimizer.state_dict()
+                        'model_state_dict': model.state_dict()
+                        # 'optimizer_state_dict': optimizer.state_dict()
                         },
                        checkpoint_path)
             test(test_dataloader, model, criterion, epoch, illustration=True)
@@ -186,7 +187,7 @@ def train(train_dataloader, model, criterion, optimizer,epoch):
         nao_bbox=nao_bbox.to(device)
 
         #forward
-        outputs = model(frames)
+        outputs,_= model(frames)
         del frames
 
         # loss and acc
@@ -227,7 +228,7 @@ def test(test_dataloader, model, criterion, epoch, illustration):
             frames=frames.to(device)
             nao_bbox=nao_bbox.to(device)
 
-            outputs = model(frames)
+            outputs,_= model(frames)
             del frames
 
 
@@ -288,7 +289,7 @@ if __name__ == '__main__':
 
     if args.euler:
         scratch_path = os.environ['TMPDIR']
-        tar_path = '/cluster/home/luohwu/dataset.tar.gz'
+        tar_path = f'/cluster/home/luohwu/{args.dataset_file}'
         assert os.path.exists(tar_path), f'file not exist: {tar_path}'
         print('extracting dataset from tar file')
         tar = tarfile.open(tar_path)

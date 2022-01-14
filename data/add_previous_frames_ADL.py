@@ -75,4 +75,4 @@ def convert_format_to_Epic():
 
 if __name__=='__main__':
     convert_format_to_Epic()
-    add_previous_frames(sample_time_length=5,sample_fps=2)
+    add_previous_frames(sample_time_length=10,sample_fps=1)

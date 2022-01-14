@@ -129,14 +129,15 @@ class IntentNetDataAttention(nn.Module):
         visual_feature=self.visual_neck(visual_feature)
         # print(f'shape of visual feature {visual_feature.shape}')
 
-        temporal_context=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
+        # temporal_context=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
+        temporal_context,atten=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
         fused_feature = self.fuse_block(visual_feature + temporal_context)
         # print(fused_feature.shape)
 
         # return self.head(fused_feature+visual_feature)
 
         # return self.head(temporal_context + visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
-        return self.head(fused_feature + visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
+        return self.head(fused_feature + visual_feature) * torch.tensor([456, 256, 456, 256]).to(device),atten
         # return self.head(temporal_context) * torch.tensor([456, 256, 456, 256])
 
     # print('shape of visual feature neck',visual_feature.shape)
@@ -149,77 +150,77 @@ class IntentNetDataAttention(nn.Module):
 
 
 
-class IntentNetDataAttentionSW(nn.Module):
-    def __init__(self):
-        super(IntentNetDataAttentionSW, self).__init__()
-        self.visual_feature = SwinTransformer()
-
-        self.visual_feature2 = SwinTransformer()
-
-
-
-
-
-        self.fuse_block=nn.Sequential(
-            nn.Linear(512,512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Linear(512,512)
-        )
-        self.fuse_block.apply(self.init_weights)
-        self.head=nn.Sequential(
-            nn.Linear(512,256),
-
-            # nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Linear(256,128),
-            # nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128,4),
-            nn.Sigmoid()
-        )
-        self.head.apply(self.init_weights)
-        self.attention=Attention(dim=512,num_heads=8,p_drop_att=0.0,p_drop_ffn=0.0,depth=6,time_length=11,hidden_times=3)
-        self.attention.apply(self.init_weights)
-
-    # previous_frames: [batch_size, channel, temporal_dim, height, width]
-    # current frame: [batch_sze, channel, height, width]
-    def forward(self,previous_frames,current_frame):
-        previous_frames=previous_frames.transpose(1,2)
-        B,T,C,H,W=previous_frames.shape
-
-        previous_frames=previous_frames.reshape(-1,C,H,W) # [B*T, C, H, W]
-        # print(f'new shape of previous frames{previous_frames.shape}')
-
-        # apply the base models to extract visual features for each frame
-        frame_wise_feature=(self.visual_feature2(previous_frames))
-
-        # shape to [B, T, length_of_feature]
-        frame_wise_feature=frame_wise_feature.view(B,T,-1)
-
-        # print(f'shape of frame_wise_feature  {frame_wise_feature.shape}')
-
-
-        visual_feature = self.visual_feature(current_frame)
-        # print(f'shape of visual feature {visual_feature.shape}')
-
-        temporal_context=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
-        fused_feature = self.fuse_block(visual_feature + temporal_context)
-        # print(fused_feature.shape)
-
-        # return self.head(fused_feature+visual_feature)
-
-        # return self.head(temporal_context + visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
-        return self.head(fused_feature + visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
-        # return self.head(temporal_context) * torch.tensor([456, 256, 456, 256])
-
-    # print('shape of visual feature neck',visual_feature.shape)
-
-
-    def init_weights(self,m):
-        if isinstance(m,nn.Linear):
-            torch.nn.init.xavier_uniform_(m.weight)
-            m.bias.data.fill_(0.01)
+# class IntentNetDataAttentionSW(nn.Module):
+#     def __init__(self):
+#         super(IntentNetDataAttentionSW, self).__init__()
+#         self.visual_feature = SwinTransformer()
+#
+#         self.visual_feature2 = SwinTransformer()
+#
+#
+#
+#
+#
+#         self.fuse_block=nn.Sequential(
+#             nn.Linear(512,512),
+#             nn.BatchNorm1d(512),
+#             nn.ReLU(),
+#             nn.Linear(512,512)
+#         )
+#         self.fuse_block.apply(self.init_weights)
+#         self.head=nn.Sequential(
+#             nn.Linear(512,256),
+#
+#             # nn.BatchNorm1d(256),
+#             nn.ReLU(),
+#             nn.Linear(256,128),
+#             # nn.BatchNorm1d(128),
+#             nn.ReLU(),
+#             nn.Linear(128,4),
+#             nn.Sigmoid()
+#         )
+#         self.head.apply(self.init_weights)
+#         self.attention=Attention(dim=512,num_heads=8,p_drop_att=0.0,p_drop_ffn=0.0,depth=6,time_length=11,hidden_times=3)
+#         self.attention.apply(self.init_weights)
+#
+#     # previous_frames: [batch_size, channel, temporal_dim, height, width]
+#     # current frame: [batch_sze, channel, height, width]
+#     def forward(self,previous_frames,current_frame):
+#         previous_frames=previous_frames.transpose(1,2)
+#         B,T,C,H,W=previous_frames.shape
+#
+#         previous_frames=previous_frames.reshape(-1,C,H,W) # [B*T, C, H, W]
+#         # print(f'new shape of previous frames{previous_frames.shape}')
+#
+#         # apply the base models to extract visual features for each frame
+#         frame_wise_feature=(self.visual_feature2(previous_frames))
+#
+#         # shape to [B, T, length_of_feature]
+#         frame_wise_feature=frame_wise_feature.view(B,T,-1)
+#
+#         # print(f'shape of frame_wise_feature  {frame_wise_feature.shape}')
+#
+#
+#         visual_feature = self.visual_feature(current_frame)
+#         # print(f'shape of visual feature {visual_feature.shape}')
+#
+#         temporal_context=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
+#         fused_feature = self.fuse_block(visual_feature + temporal_context)
+#         # print(fused_feature.shape)
+#
+#         # return self.head(fused_feature+visual_feature)
+#
+#         # return self.head(temporal_context + visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
+#         return self.head(fused_feature + visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
+#         # return self.head(temporal_context) * torch.tensor([456, 256, 456, 256])
+#
+#     # print('shape of visual feature neck',visual_feature.shape)
+#
+#
+#     def init_weights(self,m):
+#         if isinstance(m,nn.Linear):
+#             torch.nn.init.xavier_uniform_(m.weight)
+#             m.bias.data.fill_(0.01)
 
 
 class IntentNetDataAttentionCat(nn.Module):
@@ -324,17 +325,18 @@ class Attention(nn.Module):
             AttentionBlock(dim=self.dim,num_heads=self.num_heads,p_drop_att=p_drop_att,p_drop_ffn=p_drop_ffn,hidden_times=hidden_times)
             for p in range(depth)
         ])
+        self.last_atten=AttentionBlockLast(dim=self.dim,num_heads=self.num_heads,p_drop_att=p_drop_att,p_drop_ffn=p_drop_ffn,hidden_times=hidden_times)
         self.down=nn.Linear(time_length,1)
 
     def forward(self,x):
         x=x+self.pe(x)
         for block in self.blocks:
             x=block(x)
-
+        x,atten=self.last_atten(x)
         # x.shape= (B, T ,dim)
         # x.tranpose(1,2).shape= (B, dim, T)
-        x=self.down(x.transpose(1,2)).squeeze(2)
-        return x
+        # x=self.down(x.transpose(1,2)).squeeze(2)
+        return x,atten
 
 class AttentionBlock(nn.Module):
     def __init__(self,dim,num_heads,p_drop_att=0.0,p_drop_ffn=0.0,hidden_times=2):
@@ -352,27 +354,28 @@ class AttentionBlock(nn.Module):
 
 
 class MultiheadAttention(nn.Module):
-    def __init__(self,dim,num_heads,p_dropout=0.0):
-        super(MultiheadAttention,self).__init__()
-        self.dim=dim
-        self.num_heads=num_heads
-        self.head_dim=dim//num_heads
-        self.scale=self.head_dim**(-0.5)
-        self.qkv=nn.Linear(self.dim,3*self.dim)
-        self.softmax=nn.Softmax(dim=-1)
-        self.drop=nn.Dropout(p_dropout)
-        self.layer_norm=nn.LayerNorm(dim)
-    def forward(self,x):
-        B,T,dim=x.shape
+    def __init__(self, dim, num_heads, p_dropout=0.0):
+        super(MultiheadAttention, self).__init__()
+        self.dim = dim
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.scale = self.head_dim ** (-0.5)
+        self.qkv = nn.Linear(self.dim, 3 * self.dim)
+        self.softmax = nn.Softmax(dim=-1)
+        self.drop = nn.Dropout(p_dropout)
+        self.layer_norm = nn.LayerNorm(dim)
 
-        shortcut=x
-        x=self.layer_norm(x)
+    def forward(self, x):
+        B, T, dim = x.shape
+
+        shortcut = x
+        x = self.layer_norm(x)
         '''
         x.shape = (B, T, dim)
         self.qkv(x).shape = (B, T, 3*dim)
         self.qkv(x).reshape(B, T, 3, self.num_heads, self.dim // self.num_heads).shape 
             =(B,T,3,num_heads,self.dim// num_heads) 
-        
+
         self.qkv(x).reshape(B, T, 3, self.num_heads, self.dim // self.num_heads).permute(2, 0, 3, 1, 4).shape
             =(3, B, num_heads, T, self.dim // self.num_heads)
         '''
@@ -382,19 +385,83 @@ class MultiheadAttention(nn.Module):
         q = qkv[0]
         k = qkv[1]
         v = qkv[2]
-        q=q*self.scale
+        q = q * self.scale
 
         # k.transpose(-2,-1).shape= (B, num_heads, head_dim, T)
         # atten.shape= (B, num_heads, T, T)
-        atten=torch.matmul(q,k.transpose(-2,-1))
-        atten=torch.nn.functional.softmax(atten,dim=-1)
+        atten = torch.matmul(q, k.transpose(-2, -1))
+        atten = torch.nn.functional.softmax(atten, dim=-1)
 
         # torch.matmul(atten,v).shape= (B, num_heads, T, head_dim)
         # torch.matmul(atten,v).transpose(1,2).shape= (B, T, num_heads, head_dim)
         # torch.matmul(atten,v).transpose(1,2).reshape(B, T, -1).shape= (B, T, dim)
-        z=torch.matmul(atten,v).transpose(1,2).reshape(B, T, -1)
-        z=shortcut+z
+        z = torch.matmul(atten, v).transpose(1, 2).reshape(B, T, -1)
+        z = shortcut + z
         return z
+
+
+class AttentionBlockLast(nn.Module):
+    def __init__(self,dim,num_heads,p_drop_att=0.0,p_drop_ffn=0.0,hidden_times=2):
+        super(AttentionBlockLast,self).__init__()
+        self.dim = dim
+        self.num_heads=num_heads
+        self.p_drop_att=p_drop_att
+        self.p_drop_ffn=p_drop_ffn
+        self.hidden_times=hidden_times
+        self.multihead_attention=MultiheadAttentionLast(dim=self.dim,num_heads=self.num_heads,p_dropout=self.p_drop_att)
+
+    def forward(self,x):
+        z,atten=self.multihead_attention(x)
+        return z,atten
+
+
+
+class MultiheadAttentionLast(nn.Module):
+    def __init__(self, dim, num_heads, p_dropout=0.0):
+        super(MultiheadAttentionLast, self).__init__()
+        self.dim = dim
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.scale = self.head_dim ** (-0.5)
+        self.qkv = nn.Linear(self.dim, 3 * self.dim)
+        self.softmax = nn.Softmax(dim=-1)
+        self.drop = nn.Dropout(p_dropout)
+        self.layer_norm = nn.LayerNorm(dim)
+
+    def forward(self, x):
+        B, T, dim = x.shape
+
+        shortcut = x
+        x = self.layer_norm(x)
+        '''
+        x.shape = (B, T, dim)
+        self.qkv(x).shape = (B, T, 3*dim)
+        self.qkv(x).reshape(B, T, 3, self.num_heads, self.dim // self.num_heads).shape 
+            =(B,T,3,num_heads,self.dim// num_heads) 
+
+        self.qkv(x).reshape(B, T, 3, self.num_heads, self.dim // self.num_heads).permute(2, 0, 3, 1, 4).shape
+            =(3, B, num_heads, T, self.dim // self.num_heads)
+        '''
+        qkv = self.qkv(x).reshape(B, T, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+
+        # (B,num_heads,T,head_dim)
+        q = qkv[0]
+        k = qkv[1]
+        v = qkv[2]
+        q = q * self.scale
+
+        # k.transpose(-2,-1).shape= (B, num_heads, head_dim, T)
+        # atten.shape= (B, num_heads, T, T)
+        atten = torch.matmul(q, k.transpose(-2, -1))
+        atten = torch.nn.functional.softmax(atten, dim=-1)
+
+        # torch.matmul(atten,v).shape= (B, num_heads, T, head_dim)
+        # torch.matmul(atten,v).transpose(1,2).shape= (B, T, num_heads, head_dim)
+        # torch.matmul(atten,v).transpose(1,2).reshape(B, T, -1).shape= (B, T, dim)
+        z = torch.matmul(atten, v).transpose(1, 2).reshape(B, T, -1)
+        z = shortcut + z
+        # print(f'shape of z {z.shape}')
+        return z[:,-1,:], atten[:,:,-1,:]
 
 
 class FFN(nn.Module):
@@ -466,8 +533,10 @@ if __name__=='__main__':
     total_params = sum(p.numel() for p in model.parameters())
     print(f'model size: {total_params}')
     frames = torch.rand(2, 11, 3, 224, 224)
-    output=model(frames)
+    # output=model(frames)
+    output,atten = model(frames)
     # outputs_history=models(previous_frames)
     # print(outputs_history.shape)
     print(output.shape)
+    print(atten.shape)
 

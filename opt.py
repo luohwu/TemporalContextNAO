@@ -7,6 +7,8 @@ parser = argparse.ArgumentParser(description='training parameters')
 parser.add_argument('--dataset', type=str, default='ADL',
                     help='EPIC or ADL')
 
+parser.add_argument('--dataset_file', type=str, default='dataset_5sx2.tar.gz',
+                    help='EPIC or ADL')
 parser.add_argument('--original_split', default=False, action="store_true",
                     help='original train/test split or split after mixing')
 
@@ -52,7 +54,7 @@ if args.dataset == 'ADL':
 
     val_video_id=test_video_id = ['P_05', 'P_04', 'P_07', 'P_10', 'P_16']
     train_video_id = id - set(val_video_id)
-    test_video_id = ['P_07','P_08','P_11','P_18','P_19']
+    test_video_id = ['P_11']
 
     args.data_path = os.path.join(args.data_path,'ADL')
     annos_path = 'nao_annotations'
@@ -65,8 +67,8 @@ if args.dataset == 'ADL':
 
 else:
     id = {
-          # 'P01P01_01', 'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
-          'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
+          'P01P01_01', 'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
+          # 'P01P01_02', 'P01P01_03', 'P01P01_04', 'P01P01_05',
           'P01P01_06', 'P01P01_07', 'P01P01_08', 'P01P01_09', 'P01P01_10',
           'P01P01_16', 'P01P01_17', 'P01P01_18', 'P01P01_19', 'P02P02_01',
           'P02P02_02', 'P02P02_03', 'P02P02_04', 'P02P02_05', 'P02P02_06',
@@ -78,7 +80,7 @@ else:
           'P03P03_28', 'P04P04_01', 'P04P04_02', 'P04P04_03', 'P04P04_04',
           'P04P04_05', 'P04P04_06', 'P04P04_07', 'P04P04_08', 'P04P04_09',
           'P04P04_10', 'P04P04_11', 'P04P04_12', 'P04P04_13', 'P04P04_14',
-          'P04P04_15', 'P04P04_16', 'P04P04_17', 'P04P04_18', 'P04P04_19',
+          'P04P04_16', 'P04P04_17', 'P04P04_18', 'P04P04_19',
           'P04P04_20', 'P04P04_21', 'P04P04_22', 'P04P04_23', 'P05P05_01',
           'P05P05_02', 'P05P05_03', 'P05P05_04', 'P05P05_05', 'P05P05_06',
           'P05P05_08', 'P06P06_01', 'P06P06_02', 'P06P06_03', 'P06P06_05',
@@ -108,10 +110,11 @@ else:
           'P25P25_05', 'P25P25_09', 'P25P25_10', 'P25P25_11', 'P25P25_12',
           'P26P26_01', 'P26P26_02', 'P26P26_03', 'P26P26_04', 'P26P26_05',
           'P26P26_06', 'P26P26_07', 'P26P26_08', 'P26P26_09', 'P26P26_10',
-          'P26P26_12', 'P26P26_13', 'P26P26_14', 'P26P26_15',
+          'P26P26_12', 'P26P26_13',
+           'P26P26_15',
           'P26P26_16', 'P26P26_17', 'P26P26_18', 'P26P26_19', 'P26P26_20',
           'P26P26_21', 'P26P26_22', 'P26P26_23', 'P26P26_24', 'P26P26_25',
-          'P26P26_26', 'P26P26_27', 'P26P26_28', 'P26P26_29', 'P27P27_01',
+          'P26P26_26',  'P26P26_28', 'P26P26_29', 'P27P27_01',
           'P27P27_02', 'P27P27_03', 'P27P27_04', 'P27P27_06', 'P27P27_07',
           'P28P28_01', 'P28P28_02', 'P28P28_03', 'P28P28_04', 'P28P28_05',
           'P28P28_06', 'P28P28_07', 'P28P28_08', 'P28P28_09', 'P28P28_10',
@@ -139,7 +142,7 @@ else:
          'P21P21_03', 'P20P20_01', 'P08P08_01', 'P06P06_09', 'P22P22_15',
          'P26P26_03'}
     train_video_id = id - test_video_id
-    test_video_id={'P01P01_02'}
+    # test_video_id={'P01P01_02'}
     args.data_path = os.path.join(args.data_path, 'EPIC')
     annos_path = 'nao_annotations'
     frames_path = 'rgb_frames'
