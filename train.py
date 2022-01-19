@@ -16,7 +16,7 @@ from tools.comparison import generate_comparison
 import numpy as np
 from tools.Schedulers import *
 from models.IntentNetAttention import *
-from data.dataset_razvan import NAODatasetR
+from data.dataset_razvan import NAODatasetR,NAODatasetRBase
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
@@ -55,10 +55,13 @@ def main():
 
     # model=IntentNetFuse()
     # model=IntentNetFullAttention()
-    model=IntentNetDataAttention()
-    # model=IntentNetBase()
+    # model=IntentNetDataAttention()
+    model=IntentNetBase()
     # model = IntentNetFuseAttentionVector()
     # model = IntentNetIC()
+    # for i in range(5):
+    #     for p in model.visual_feature[i].parameters():
+    #         p.requires_grad=False
     # for p in model.visual_feature.parameters():
     #     p.requires_grad=False
     # for p in model.visual_feature2.parameters():
@@ -79,14 +82,15 @@ def main():
     model = model.to(device)
 
     if args.original_split:
-        train_dataset = NAODataset(mode='train', dataset_name=args.dataset)
-        test_dataset = NAODataset(mode='test', dataset_name=args.dataset)
+        train_dataset = NAODatasetRBase(mode='train', dataset_name=args.dataset)
+        test_dataset = NAODatasetRBase(mode='test', dataset_name=args.dataset)
     else:
-        all_data = NAODatasetR(mode='all', dataset_name=args.dataset)
-        if args.dataset == 'ADL':
-            train_dataset, test_dataset = torch.utils.data.random_split(all_data, [1767, 450],generator=torch.Generator().manual_seed(args.seed))
-        else:
-            train_dataset, test_dataset = torch.utils.data.random_split(all_data, [9782, 3296],generator=torch.Generator().manual_seed(args.seed))
+        all_data = NAODatasetRBase(mode='all', dataset_name=args.dataset)
+        train_size=int(0.8*len(all_data))
+        test_size=len(all_data)-train_size
+        train_dataset, test_dataset = torch.utils.data.random_split(all_data, [train_size, test_size],
+                                                                    generator=torch.Generator().manual_seed(args.seed))
+
 
     # train_dataset, test_dataset = ini_datasets(dataset_name=args.dataset, original_split=args.original_split)
 
@@ -94,12 +98,12 @@ def main():
 
     print(f'train dataset size: {len(train_dataset)}, test dataset size: {len(test_dataset)}')
     train_dataloader = DataLoader(train_dataset, batch_size=args.bs,
-                                  shuffle=True, num_workers=4,
+                                  shuffle=True, num_workers=2,
                                   pin_memory=True,
                                   drop_last=True if torch.cuda.device_count() >=4 else False)
     test_dataloader = DataLoader(test_dataset,
                                 batch_size=args.bs,
-                                shuffle=True, num_workers=4,
+                                shuffle=True, num_workers=2,
                                 pin_memory=True,
                                 drop_last=True if torch.cuda.device_count() >= 4 else False)
 
@@ -111,7 +115,8 @@ def main():
         print('using AdamW')
         optimizer = optim.AdamW(filter(lambda  p: p.requires_grad,model.parameters()),
                                 lr=args.lr,
-                                betas=(0.9, 0.99)
+                                betas=(0.9, 0.99),
+                                weight_decay=0.05
                                 # ,weight_decay=args.weight_decay
                                 )
 
@@ -119,18 +124,18 @@ def main():
 
 
 
-    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-    #                                                  mode='min',
-    #                                                  factor=0.8,
-    #                                                  patience=3,
-    #                                                  verbose=True,
-    #                                                  min_lr=0.00001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                     mode='min',
+                                                     factor=0.8,
+                                                     patience=3,
+                                                     verbose=True,
+                                                     min_lr=0.000001)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, eta_min=4e-5,verbose=True)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=25,eta_min=1e-5,verbose=True)
     # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=False)
     # scheduler=CosExpoScheduler(optimizer,switch_step=100,eta_min=4e-5,gamma=0.995,min_lr=1e-6)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100,T_mult=2, eta_min=4e-5, verbose=True)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=1e-6,decay_rate=0.5,verbose=True)
+    # scheduler=DecayCosinWarmRestars(optimizer,T_0=100,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
     """"
     Heatmap version
     """
@@ -153,8 +158,8 @@ def main():
 
         train_loss = train(train_dataloader, model, criterion, optimizer, epoch=epoch)
         test_loss = test(test_dataloader, model, criterion, epoch, illustration=False)
-        # scheduler.step(test_loss)
-        scheduler.step()
+        scheduler.step(test_loss)
+        # scheduler.step()
         train_loss_list.append(train_loss)
         test_loss_list.append(test_loss)
         if epoch % epoch_save == 0:
@@ -182,12 +187,13 @@ def train(train_dataloader, model, criterion, optimizer,epoch):
     len_dataset = len(train_dataloader.dataset)
     for i, data in enumerate(train_dataloader, start=1):
         frames, nao_bbox, img_path = data
+        # print(f'file path: {img_path}')
         # print(f'previous_frames:{previous_frames.shape}, cur_frame: {current_frame.shape}')
         frames=frames.to(device)
         nao_bbox=nao_bbox.to(device)
 
         #forward
-        outputs,_= model(frames)
+        outputs= model(frames)
         del frames
 
         # loss and acc
@@ -228,7 +234,7 @@ def test(test_dataloader, model, criterion, epoch, illustration):
             frames=frames.to(device)
             nao_bbox=nao_bbox.to(device)
 
-            outputs,_= model(frames)
+            outputs= model(frames)
             del frames
 
 

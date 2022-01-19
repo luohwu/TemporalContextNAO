@@ -137,7 +137,7 @@ for data in dataset:
         cv2.imshow(window_name,image_display)
         atten=atten.squeeze(0).sum(dim=0)
         frame_contribution=torch.nn.functional.softmax(atten,dim=0).detach().numpy()
-        fig=plt.figure()
+        fig=plt.figure(figsize=(13.6,5.12))
 
         plt.plot(frame_contribution)
         plt.ylabel('frame contribution')
@@ -148,12 +148,12 @@ for data in dataset:
         graph_image = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         graph_image=cv2.resize(graph_image,(456*3,256*2))
         # print(graph_image.shape)
-        cam_image_concat2 = np.concatenate((cam_image_concat,graph_image), axis=0)
-        cam_image_concat2=cv2.cvtColor(cam_image_concat2, cv2.COLOR_RGB2BGR)
-        cv2.imshow('test',cam_image_concat2)
+        image_display = np.concatenate((cam_image_concat,graph_image), axis=0)
+        image_display=cv2.cvtColor(image_display, cv2.COLOR_RGB2BGR)
+        cv2.imshow(window_name,image_display)
         key=cv2.waitKey(0) & 0xFF
         if key==ord('s'):
-            save_path=os.path.join('/media/luohwu/T7/experiments/grad_cam',window_name)
+            save_path=os.path.join('/media/luohwu/T7/experiments/grad_cam',window_name.replace('/','_'))
             cv2.imwrite(
                 filename=save_path,
                 img=image_display

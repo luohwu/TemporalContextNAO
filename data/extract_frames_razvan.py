@@ -139,7 +139,7 @@ if __name__=='__main__':
     # m tar files
     ########################################################################
     #create dir for selected .tar files
-    # make_dirs()
+    make_dirs()
 
     # move only needed .tar files to our target dir
     # move_tars()
