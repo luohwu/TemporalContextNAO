@@ -53,7 +53,7 @@ class CIOU_LOSS(nn.Module):
         """
         with torch.no_grad():
             acc=(total_area-union+inter_area)/total_area
-            acc=acc>0.5
+            acc=iou>0.5
             tp=inter_area
             tn=(total_area-union)
             fp=(area1-inter_area)

@@ -20,9 +20,6 @@ class IntentNetBase(nn.Module):
         self.visual_feature = nn.Sequential(*modules[:-3],
                                             modules[-3][0])
         self.head=nn.Sequential(
-            # nn.BatchNorm2d(512),
-            nn.Dropout2d(0.5),
-            nn.ReLU(),
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(1),
             # nn.AdaptiveAvgPool1d(512),
@@ -33,21 +30,22 @@ class IntentNetBase(nn.Module):
             # nn.Linear(1024,512),
             # nn.Dropout(0.5),
             # nn.ReLU(),
-            # nn.Linear(512, 512),
-            # nn.ReLU(),
-            # nn.Linear(512,256),
-            # nn.Dropout(0.2),
-            # nn.LeakyReLU(),
-            # nn.Linear(256,128),
-            # nn.Dropout(0.2),
-            # nn.LeakyReLU(),
-            # nn.Linear(128,4),
-            # nn.Sigmoid()
+            nn.Linear(512, 512),
+            nn.Dropout(0.2),
+            nn.LeakyReLU(),
             nn.Linear(512,256),
+            nn.Dropout(0.2),
+            nn.LeakyReLU(),
+            nn.Linear(256,128),
             nn.Dropout(0.5),
             nn.LeakyReLU(),
-            nn.Linear(256,4),
+            nn.Linear(128,4),
             nn.Sigmoid()
+            # nn.Linear(512,256),
+            # nn.Dropout(0.5),
+            # nn.LeakyReLU(),
+            # nn.Linear(256,4),
+            # nn.Sigmoid()
         )
 
 
@@ -62,6 +60,68 @@ class IntentNetBase(nn.Module):
         visual_feature = self.visual_feature(current_frame)
         # print(f'visual feature shape: {visual_feature.shape}')
         head=self.head(visual_feature)
+        # print(f'head shape: {head.shape}')
+        return head*torch.tensor([456,256,456,256]).to(device)
+
+class IntentNetBaseGlobal(nn.Module):
+    def __init__(self):
+        super(IntentNetBaseGlobal, self).__init__()
+        resnet=models.resnet18(pretrained=True)
+        # resnet = models.resnet50(pretrained=True)
+        modules = list(resnet.children())
+        # self.visual_feature = nn.Sequential(*modules[:-3],
+        #                                     modules[-3][0])
+        # self.visual_feature = nn.Sequential(*modules[:4],
+        #                                     modules[4],
+        #                                     nn.Dropout2d(0.7),
+        #                                     modules[5],
+        #                                     nn.Dropout2d(0.5),
+        #                                     modules[6],
+        #                                     nn.Dropout2d(0.5),
+        #                                     modules[7][0],
+        #                                     nn.Dropout(0.5))
+        self.visual_feature = nn.Sequential(*modules[:4],
+                                            modules[4][0],
+                                            nn.Dropout2d(0.2),
+                                            modules[4][1],
+                                            nn.Dropout2d(0.2),
+                                            modules[5][0])
+        self.head1=nn.Sequential(
+            # nn.Conv2d(512,512,kernel_size=(3,3),stride=1,padding=1),
+            # nn.Dropout2d(0.7),
+            # nn.BatchNorm2d(512),
+            # nn.LeakyReLU(),
+            # nn.Conv2d(512,512,kernel_size=(3,3),stride=1,padding=1),
+            # nn.BatchNorm2d(512),
+            # nn.LeakyReLU(),
+        )
+        self.head2=nn.Sequential(
+            nn.Conv2d(128, 64, 1, 1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
+            nn.Dropout2d(0.5),
+            nn.Conv2d(64,4,1,1),
+            # nn.BatchNorm2d(128),
+            # nn.LeakyReLU(),
+            # nn.Conv2d(128,4,1,1),
+            # nn.LeakyReLU(),
+            nn.AdaptiveAvgPool2d((1,1)),
+            nn.Flatten(1),
+            nn.Sigmoid()
+        )
+
+
+
+    # previous_frames: [batch_size, channel, temporal_dim, height, width]
+    # current frame: [batch_sze, channel, height, width]
+    def forward(self,frames):
+        # current_frame=frames[:,-1]
+        current_frame = frames
+
+
+        visual_feature = self.visual_feature(current_frame)
+        # print(f'visual feature shape: {visual_feature.shape}')
+        head=self.head2(visual_feature+self.head1(visual_feature))
         # print(f'head shape: {head.shape}')
         return head*torch.tensor([456,256,456,256]).to(device)
 
@@ -805,14 +865,14 @@ if __name__=='__main__':
 
     # models=IntentNetIC()
     # models=IntentNetFuseAttentionMatrix()
-    model=IntentNetBase()
+    model=IntentNetBaseGlobal()
     print(model.visual_feature)
     print('='*50)
     print(model.visual_feature[0])
     # models = IntentNetSwin(time_length=10)
     # num_params_temporal_context_extractor=sum(p.numel() for p in models.temporal_context_extractor.parameters())
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f'model size: {total_params}')
+    total_params = sum(p.numel() for p in model.parameters())-sum(p.numel() for p in model.visual_feature.parameters())
+    print(f'alive size: {total_params}')
     # 99K and 11K, so the temporal feature extractor has more then 80K parameters
     # print(f'total # of parameters: {total_params}, total # of parameters without temporal feature: {total_params-num_params_temporal_context_extractor}')
     frames=torch.rand(2,3,224,224)

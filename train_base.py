@@ -56,15 +56,15 @@ def main():
     # model=IntentNetFuse()
     # model=IntentNetFullAttention()
     # model=IntentNetDataAttention()
-    model=IntentNetDataAttentionR()
-    # model=IntentNetBase()
+    # model=IntentNetDataAttentionR()
+    model=IntentNetBaseGlobal()
     # model = IntentNetFuseAttentionVector()
     # model = IntentNetIC()
-    # for i in range(8):
+    # for i in range(7):
     #     for p in model.visual_feature[i].parameters():
     #         p.requires_grad=False
-    #     for p in model.visual_feature2[i].parameters():
-    #         p.requires_grad=False
+        # for p in model.visual_feature2[i].parameters():
+        #     p.requires_grad=False
     # for p in model.visual_feature.parameters():
     #     p.requires_grad=False
     # for p in model.visual_feature2.parameters():
@@ -85,10 +85,10 @@ def main():
     model = model.to(device)
 
     if args.original_split:
-        train_dataset = NAODatasetR(mode='train', dataset_name=args.dataset)
-        test_dataset = NAODatasetR(mode='test', dataset_name=args.dataset)
+        train_dataset = NAODatasetRBase(mode='train', dataset_name=args.dataset)
+        test_dataset = NAODatasetRBase(mode='test', dataset_name=args.dataset)
     else:
-        all_data = NAODatasetR(mode='all', dataset_name=args.dataset)
+        all_data = NAODatasetRBase(mode='all', dataset_name=args.dataset)
         train_size=int(0.8*len(all_data))
         test_size=len(all_data)-train_size
         train_dataset, test_dataset = torch.utils.data.random_split(all_data, [train_size, test_size],
@@ -122,7 +122,6 @@ def main():
                                 weight_decay=0
                                 # ,weight_decay=args.weight_decay
                                 )
-
 
 
 

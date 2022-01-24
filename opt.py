@@ -4,7 +4,7 @@ import argparse
 import os
 parser = argparse.ArgumentParser(description='training parameters')
 
-parser.add_argument('--dataset', type=str, default='EPIC',
+parser.add_argument('--dataset', type=str, default='ADL',
                     help='EPIC or ADL')
 
 parser.add_argument('--dataset_file', type=str, default='dataset_5sx2.tar.gz',

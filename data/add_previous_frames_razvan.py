@@ -32,7 +32,7 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
     all_par_video_id = sorted(id)
     for par_video_id in all_par_video_id:
         video_id = par_video_id[3:]
-        anno_file_path = os.path.join(args.data_path, 'nao_annotations_razvan',video_id[:3], f'{video_id}_nao_1.csv')
+        anno_file_path = os.path.join('/media/luohwu/T7/razvan/EK/Datasets/EK/data',video_id[:3], f'{video_id}_nao_1.csv')
         if os.path.exists(anno_file_path):
             print(f'current video id: {video_id}')
             current_video_ino = video_info.loc[video_info['video'] == video_id]
@@ -62,7 +62,7 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
                 annotations['previous_frames'] = annotations.apply(
                     lambda row: [frame if frame > 0 else 1 for frame in row['previous_frames']], axis=1)
                 annotations=annotations.rename(columns={'Frame_no':'frame','Classes':'class','Bboxes':'nao_bbox','Scores':'scores'})
-                save_path=os.path.join(args.data_path, 'nao_annotations_razvan_filtered', f'{video_id}_nao.csv')
+                save_path=os.path.join(args.data_path, 'nao_annotations', f'nao_{video_id}.csv')
                 annotations.to_csv(save_path, index=False)
         else:
             print(f'file not exit: {anno_file_path}')

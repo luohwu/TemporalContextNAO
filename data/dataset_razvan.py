@@ -60,8 +60,7 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
                 annos['img_path']=img_path
 
                 if not annos.empty:
-                    annos_subset=annos[['img_path',
-                                                     'nao_bbox', 'class','previous_frames','frame']]
+                    annos_subset=annos[['img_path','nao_bbox', 'class','previous_frames','frame']]
                     df_items = df_items.append(annos_subset)
 
 

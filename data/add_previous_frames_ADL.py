@@ -44,6 +44,8 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
                 annotations['previous_frames'] = annotations.apply(
                     lambda row: [frame if frame > 0 else 1 for frame in row['previous_frames']], axis=1)
                 annotations['nao_bbox_resized'] = annotations.apply(resize_bbox, args=[height, width], axis=1)
+                annotations=annotations.drop(columns={'nao_bbox'})
+                annotations=annotations.rename(columns={'nao_bbox_resized':'nao_bbox'})
                 annotations.to_csv(anno_file_path, index=False)
 
 # original annotation files are .txt files and have different data format from those EPIC annotations
@@ -71,6 +73,7 @@ def convert_format_to_Epic():
         annos['id']=video_id
         annos=annos.rename(columns={"frame_id":"frame","object_label":"label"})
         annos=annos[['frame','id','label','nao_bbox']]
+        annos=annos.rename(columns= {'label':'class'})
         annos.to_csv(anno_file_path_csv,index=False)
 
 if __name__=='__main__':

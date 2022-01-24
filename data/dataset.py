@@ -39,6 +39,9 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
     print(f'start load {mode} data, #videos: {len(par_video_id_list)}')
     df_items = pd.DataFrame()
     for video_id in sorted(par_video_id_list):
+        if dataset_name=='EPIC':
+            participant_id=video_id[:3]
+            video_id=video_id[3:]
         anno_name = 'nao_' + video_id + '.csv'
         anno_path = os.path.join(args.data_path, annos_path, anno_name)
         if os.path.exists(anno_path):
@@ -49,24 +52,21 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
             else:
                 #for Epic dataset, the format of video_id is: P01P01_01, video_id[0:3] is participant_id,
                 #and video_id[3:] is the real video_id
-                img_path=os.path.join(args.data_path,frames_path,video_id[0:3],video_id[3:])
+                img_path=os.path.join(args.data_path,frames_path,participant_id,video_id)
 
             annos = pd.read_csv(anno_path,
                                 converters={"nao_bbox": literal_eval,
-                                            "nao_bbox_resized": literal_eval,
+                                            # "nao_bbox_resized": literal_eval,
                                             "previous_frames":literal_eval})
             annos['img_path']=img_path
 
             if not annos.empty:
-
-
-                annos_subset=annos[['img_path',
-                                                 'nao_bbox_resized', 'label','previous_frames','frame']]
+                annos_subset = annos[['img_path', 'nao_bbox', 'class', 'previous_frames', 'frame']]
                 df_items = df_items.append(annos_subset)
 
 
 
-    df_items = df_items.rename(columns={'nao_bbox_resized': 'nao_bbox'})
+    # df_items = df_items.rename(columns={'nao_bbox_resized': 'nao_bbox'})
     print('finished')
     print('=============================================================')
     return df_items
@@ -84,10 +84,10 @@ class NAODataset(Dataset):
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose([  # [h, w]
-            transforms.Resize(args.img_resize),
+            # transforms.Resize(args.img_resize),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
             # , AddGaussianNoise(0., 0.5)
         ])
         self.transform_test = transforms.Compose([  # [h, w]
@@ -99,10 +99,10 @@ class NAODataset(Dataset):
 
         self.transform_previous_frames = transforms.Compose([  # [h, w]
             # transforms.Resize((112,112)) if args.C3D else transforms.Resize((224,224))  ,
-            transforms.Resize((224, 224)),
+            # transforms.Resize((224, 224)),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
             # , AddGaussianNoise(0., 0.5)
         ])
         self.transform_previous_frames_test = transforms.Compose([  # [h, w]
@@ -206,28 +206,43 @@ if __name__ == '__main__':
     for epoch in range(1):
 
         for data in train_dataloader:
-            frames,nao_bbox,current_frame_path=data
+            frames, nao_bbox, current_frame_path = data
             # print(f'previous frames shape: {previous_frames.shape}')
             # print(f'current_frame shape: {current_frame.shape}')
-            print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
+            # print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')
+            print(f'current frame path: {current_frame_path[0]}')
+            window_name = current_frame_path[0][-25:]
 
-            nao_bbox_shape=nao_bbox.shape
+            nao_bbox_shape = nao_bbox.shape
 
             """"
             test data and annotations
             need to undo-resize first !!!
             """
-            # current_frame_example=current_frame[0].permute(1,2,0).numpy()
-            # current_frame_example*=255
-            # cv2.imwrite('test.jpg',current_frame_example)
-            # cv2_image=cv2.imread('test.jpg')
-            # cv2_image=cv2.cvtColor(cv2_image,cv2.COLOR_BGR2RGB)
-            # nao_bbox_example=nao_bbox[0].numpy()
-            # cv2.rectangle(cv2_image,(nao_bbox_example[0],nao_bbox_example[1]),(nao_bbox_example[2],nao_bbox_example[3]),(255,0,0),3)
-            # #
-            # cv2.imshow(f'{current_frame_path[0][-10:-4]}',cv2_image)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+            current_frame_example = frames[0, -1].permute(1, 2, 0).numpy()
+            current_frame_example *= 255
+            cv2.imwrite('test.jpg', current_frame_example)
+            cv2_image = cv2.imread('test.jpg')
+            cv2_image = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB)
+            nao_bbox_example = nao_bbox[0].numpy()
+            cv2.rectangle(cv2_image, (nao_bbox_example[0], nao_bbox_example[1]),
+                          (nao_bbox_example[2], nao_bbox_example[3]), (255, 0, 0), 3)
+            #
+            cv2.imshow(f'{current_frame_path[0][-10:-4]}', cv2_image)
+            key = cv2.waitKey(0) & 0xFF
+            if key == ord('s'):
+                save_path = os.path.join('/media/luohwu/T7/experiments/visualization', window_name.replace('/', '_'))
+                cv2.imwrite(
+                    filename=save_path,
+                    img=cv2_image
+                )
+                cv2.destroyAllWindows()
+            elif key == ord('q'):
+                cv2.destroyAllWindows()
+                break
+            else:
+                cv2.destroyAllWindows()
+                continue
 
 
     end = time.time()
