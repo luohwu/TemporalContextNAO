@@ -4,7 +4,7 @@ import argparse
 import os
 parser = argparse.ArgumentParser(description='training parameters')
 
-parser.add_argument('--dataset', type=str, default='ADL',
+parser.add_argument('--dataset', type=str, default='EPIC',
                     help='EPIC or ADL')
 
 parser.add_argument('--dataset_file', type=str, default='dataset_5sx2.tar.gz',
@@ -54,7 +54,7 @@ if args.dataset == 'ADL':
 
     val_video_id=test_video_id = ['P_05', 'P_04', 'P_07', 'P_10', 'P_16']
     train_video_id = id - set(val_video_id)
-    test_video_id = ['P_07']
+    # test_video_id = ['P_07']
 
     args.data_path = os.path.join(args.data_path,'ADL')
     annos_path = 'nao_annotations'

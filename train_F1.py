@@ -56,7 +56,7 @@ def main():
     # model=IntentNetFuse()
     # model=IntentNetFullAttention()
     # model=IntentNetDataAttention()
-    model=IntentNetDataAttention()
+    model=IntentNetDataAttentionR()
     # model=IntentNetBase()
     # model = IntentNetFuseAttentionVector()
     # model = IntentNetIC()
@@ -119,7 +119,7 @@ def main():
         optimizer = optim.AdamW(filter(lambda  p: p.requires_grad,model.parameters()),
                                 lr=args.lr,
                                 betas=(0.9, 0.99),
-                                # weight_decay=0
+                                weight_decay=0
                                 # ,weight_decay=args.weight_decay
                                 )
 
@@ -138,7 +138,7 @@ def main():
     # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=False)
     # scheduler=CosExpoScheduler(optimizer,switch_step=100,eta_min=4e-5,gamma=0.995,min_lr=1e-6)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100,T_mult=2, eta_min=4e-5, verbose=True)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
+    # scheduler=DecayCosinWarmRestars(optimizer,T_0=100,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
     """"
     Heatmap version
     """
@@ -200,10 +200,10 @@ def train(train_dataloader, model, criterion, optimizer,epoch):
         del frames
 
         # loss and acc
-        loss, iou = criterion(outputs, nao_bbox)
+        loss, acc,f1,_ = criterion(outputs, nao_bbox)
         # loss = criterion(outputs, nao_bbox)
         # acc, f1, conf_matrix = cal_acc_f1(outputs, nao_bbox)
-        acc=iou>0.5
+
 
         del outputs, nao_bbox
 
@@ -212,10 +212,12 @@ def train(train_dataloader, model, criterion, optimizer,epoch):
         loss.backward()
         optimizer.step()
         train_losses += loss.item()
+        total_f1 += f1.sum().item()
         total_acc += acc.sum().item()
     acc_avg = total_acc / len_dataset
     f1_avg=total_f1/len_dataset
     experiment.log_metric("train_acc_avg", acc_avg, step=epoch)
+    experiment.log_metric("train_f1_avg", f1_avg, step=epoch)
 
     return train_losses / len_dataset
     # return train_losses
@@ -224,6 +226,8 @@ def test(test_dataloader, model, criterion, epoch, illustration):
     model.eval()
     total_test_loss = 0
     total_acc=0
+    total_f1=0
+    total_conf_matrix=np.zeros([2,2])
     global_min_acc=999
     global_max_acc=-999
     len_dataset = len(test_dataloader.dataset)
@@ -237,19 +241,20 @@ def test(test_dataloader, model, criterion, epoch, illustration):
             del frames
 
 
-            loss, iou = criterion(outputs, nao_bbox)
-            acc=iou>0.5
+            loss, acc,f1,conf_matrix = criterion(outputs, nao_bbox)
             # loss = criterion(outputs, nao_bbox)
             # acc, f1, conf_matrix=cal_acc_f1(outputs, nao_bbox)
 
 
             total_test_loss += loss.item()
+            total_f1+=f1.sum().item()
             total_acc += acc.sum().item()
+            total_conf_matrix+=conf_matrix
 
 
             if illustration:
-                min_acc,min_index=iou.min(0) ###########################################
-                max_acc,max_index=iou.max(0) ##############################################
+                min_acc,min_index=f1.min(0) ###########################################
+                max_acc,max_index=f1.max(0) ##############################################
                 if global_min_acc > min_acc:
                     global_min_acc = min_acc
                     global_min_image = img_path[min_index]
@@ -274,8 +279,14 @@ def test(test_dataloader, model, criterion, epoch, illustration):
 
         test_loss_avg = total_test_loss / len_dataset
         acc_avg = total_acc / len_dataset
-    print(f'[epoch {epoch}], [test loss {test_loss_avg:5f}], [acc avg {acc_avg:5f}]')
+        f1_avg=total_f1/len_dataset
+        conf_matrix_avg=(total_conf_matrix/len_dataset).astype(np.int32)
+    print(f'[epoch {epoch}], [test loss {test_loss_avg:5f}], [acc avg {acc_avg:5f}],[f1 avg {f1_avg:5f}] ')
     experiment.log_metric("test_acc_avg", acc_avg, step=epoch)
+    experiment.log_metric("test_f1_avg", f1_avg, step=epoch)
+    experiment.log_confusion_matrix(matrix=conf_matrix_avg, title=f"confusion matrix epoch {epoch}",
+                                    file_name=f"confusion_matrix_epoc_{epoch}.json",row_label="Actual Category",
+                                    column_label="Predicted Category",labels=["1","0"],step=epoch)
 
     model.train()
 

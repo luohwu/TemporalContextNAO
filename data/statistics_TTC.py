@@ -11,21 +11,7 @@ from opt import *
 
 import numpy as np
 
-
-class AddGaussianNoise(object):
-    def __init__(self, mean=0., std=1.):
-        self.std = std
-        self.mean = mean
-
-    def __call__(self, tensor):
-        return tensor + torch.randn(tensor.size()) * self.std + self.mean
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
-
-
-
-def make_sequence_dataset(mode='train',dataset_name='ADL'):
+def make_sequence_datasetTTC(mode='train',dataset_name='ADL'):
     print(f'dataset name: {dataset_name}')
     #val is the same as test
     if mode=='all':
@@ -61,21 +47,25 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
             annos['img_path']=img_path
 
             if not annos.empty:
-                annos_subset = annos[['img_path', 'nao_bbox', 'class', 'previous_frames', 'frame']]
+                annos_subset = annos[['img_path', 'nao_bbox', 'class', 'previous_frames', 'frame','TTC','TTC_level']]
                 df_items = df_items.append(annos_subset)
 
 
 
+
     # df_items = df_items.rename(columns={'nao_bbox_resized': 'nao_bbox'})
+    # df_items.to_csv('/media/luohwu/T7/dataset/EPIC/csv_format.csv',index=False)
     print('finished')
     print('=============================================================')
     return df_items
-class NAODataset(Dataset):
+
+
+class NAODatasetTTC(Dataset):
     def __init__(self, mode='train',dataset_name='ADL'):
         self.mode=mode
         self.transform_label = transforms.ToTensor()
 
-        self.data = make_sequence_dataset(mode,dataset_name)
+        self.data = make_sequence_datasetTTC(mode,dataset_name)
         # self.data = data
         # self.data = self.data.sample(frac=1).reset_index(drop=True)
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -114,6 +104,7 @@ class NAODataset(Dataset):
         # rand_num=0
         df_item = self.data.iloc[item, :]
         nao_bbox = df_item.nao_bbox
+        TTC_level=df_item.TTC_level
         # print(f'original bbox: {nao_bbox}')
 
         # path where images are stored
@@ -147,126 +138,35 @@ class NAODataset(Dataset):
         # print(f'shape of frames{frames_tensor.shape}')
 
 
-        return frames_tensor, torch.tensor(nao_bbox),current_frame_path
+        return frames_tensor, torch.tensor(nao_bbox),current_frame_path,TTC_level
         # return 1, current_frame_tensor, torch.tensor(nao_bbox), current_frame_path
 
     def __len__(self):
         return self.data.shape[0]
 
-
-
-
-class NAODatasetBase(Dataset):
-    def __init__(self, mode='train',dataset_name='ADL'):
-        self.mode=mode
-        self.transform_label = transforms.ToTensor()
-
-        self.data = make_sequence_dataset(mode,dataset_name)
-        # self.data = data
-        # self.data = self.data.sample(frac=1).reset_index(drop=True)
-        self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-
-        self.transform = transforms.Compose([  # [h, w]
-            transforms.Resize(args.img_resize),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
-            # , AddGaussianNoise(0., 0.5)
-        ])
-        self.transform_test = transforms.Compose([  # [h, w]
-            transforms.Resize(args.img_resize),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
-        ])
-
-        self.transform_previous_frames = transforms.Compose([  # [h, w]
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
-            # , AddGaussianNoise(0., 0.5)
-        ])
-        self.transform_previous_frames_test = transforms.Compose([  # [h, w]
-            # transforms.Resize((112,112)) if args.C3D else transforms.Resize((224,224))  ,
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
-        ])
-
-    def __getitem__(self, item):
-        # rand_num=torch.rand(1) if self.mode=='train' else 0
-        # rand_num=0
-        df_item = self.data.iloc[item, :]
-        nao_bbox = df_item.nao_bbox
-        # print(f'original bbox: {nao_bbox}')
-
-        # path where images are stored
-        img_dir = df_item.img_path
-
-        current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
-        current_frame=Image.open(current_frame_path)
-        # if rand_num>0.5:
-        #     current_frame = ImageOps.mirror(current_frame)
-        #     temp=nao_bbox[0]
-        #     nao_bbox[0]=455-nao_bbox[2]
-        #     nao_bbox[2] = 455 - temp
-
-        # print(f'new bbox: {nao_bbox}')
-
-        current_frame_tensor=self.transform(current_frame)
-        # print(f'shape of current frame: {current_frame_tensor.shape}')
-
-
-
-        return current_frame_tensor, torch.tensor(nao_bbox),current_frame_path
-        # return 1, current_frame_tensor, torch.tensor(nao_bbox), current_frame_path
-
-    def __len__(self):
-        return self.data.shape[0]
-
-class NAODatasetCAM(Dataset):
-    def __init__(self, mode='train',dataset_name='ADL'):
-        self.mode=mode
-        self.data = make_sequence_dataset(mode,dataset_name)
-
-    def __getitem__(self, item):
-        df_item = self.data.iloc[item, :]
-
-        # path where images are stored
-        img_dir = df_item.img_path
-        current_frame_path=os.path.join(img_dir,f'frame_{str(df_item.frame).zfill(10)}.jpg')
-        nao_bbox = df_item.nao_bbox
-
-
-        return current_frame_path,torch.tensor(nao_bbox)
-
-    def __len__(self):
-        return self.data.shape[0]
-
-
-
-
-def ini_datasets(dataset_name='ADL',original_split=False):
-    if original_split==False:
-        data = make_sequence_dataset('all', dataset_name)
-        data=data.iloc[np.random.RandomState(seed=args.seed).permutation(len(data))]
-        if dataset_name=='ADL':
-            # train_data,val_data=data.iloc[0:1767],data.iloc[1767:]
-            train_data,val_data=data.iloc[0:1767],data.iloc[1767:]
-        else:
-            train_data,val_data=data.iloc[0:8589],data.iloc[8589:]
-    else:
-        train_data, val_data = make_sequence_dataset('train', dataset_name),make_sequence_dataset('val', dataset_name)
-
-    return NAODataset(mode='train', data=train_data), NAODataset(mode='val', data=val_data)
-
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     # train_dataset,val_dataset=ini_datasets(dataset_name='ADL',original_split=False)
-    train_dataset = NAODataset(mode='train',dataset_name=args.dataset)
+    train_dataset = NAODatasetTTC(mode='train',dataset_name=args.dataset)
+
     print(train_dataset.data.head())
+    for i in range(len(train_dataset.data)):
+        item=train_dataset.data.iloc[i]
+        # if item['TTC_level']>2:
+        #     print(item['img_path'][-25:])
+        #     print(item['frame'])
+        #     print(item['TTC_level'])
+    TTC=train_dataset.data['TTC_level']
+    print(TTC.shape)
+    figure=plt.figure(figsize=(12,8),dpi=1200)
+    # plt.plot(range(len(TTC)),TTC,'o')
+    plt.hist(TTC,bins=range(1,21))
+    plt.xticks(range(1,21,1))
+    # plt.show()
+    plt.savefig('/media/luohwu/T7/dataset/EPIC/plot.svg')
+    cv2.waitKey(0)
+
     # train_dataset.data.to_csv('/media/luohwu/T7/dataset/EPIC/test.csv')
     train_dataloader = DataLoader(train_dataset, batch_size=1,
                                   num_workers=8, shuffle=False,pin_memory=True)
@@ -275,7 +175,7 @@ if __name__ == '__main__':
     for epoch in range(1):
 
         for data in train_dataloader:
-            frames, nao_bbox, current_frame_path = data
+            frames, nao_bbox, current_frame_path,TTC = data
             # print(f'previous frames shape: {previous_frames.shape}')
             # print(f'current_frame shape: {current_frame.shape}')
             # print(f'sample frame path: {current_frame_path[0]}, nao_bbox: {nao_bbox[0]}')

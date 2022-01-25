@@ -3,7 +3,7 @@ from ast import literal_eval
 import pandas as pd
 
 from opt import *
-
+import  math
 def calibrate_nao_bbox(row):
     bbox=row["Bboxes"]
     new_bbox= bbox
@@ -16,7 +16,7 @@ def calibrate_nao_bbox(row):
 
 
 def filter_fn(row):
-    if len(row['Scores'])>1 or row['Scores'][0]<0.9:
+    if len(row['Scores'])>1 or row['Scores'][0]<0.7:
         return False
     return True
 
@@ -62,7 +62,11 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
                 annotations['previous_frames'] = annotations.apply(
                     lambda row: [frame if frame > 0 else 1 for frame in row['previous_frames']], axis=1)
                 annotations=annotations.rename(columns={'Frame_no':'frame','Classes':'class','Bboxes':'nao_bbox','Scores':'scores'})
-                save_path=os.path.join(args.data_path, 'nao_annotations', f'nao_{video_id}.csv')
+                annotations['TTC'] = annotations.apply(lambda row: row['nao_start_sec'] - row['det_sec'], axis=1)
+                annotations['TTC_level'] = annotations.apply(lambda row: math.ceil(row['TTC']), axis=1)
+                annotations=annotations.loc[annotations['TTC_level']<21]
+
+                save_path = os.path.join(args.data_path, 'nao_annotations', f'nao_{video_id}.csv')
                 annotations.to_csv(save_path, index=False)
         else:
             print(f'file not exit: {anno_file_path}')

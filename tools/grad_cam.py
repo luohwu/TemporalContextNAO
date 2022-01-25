@@ -23,6 +23,7 @@ from tools.CIOU import cal_ciou
 from data.dataset import *
 from opt import *
 from models.IntentNetAttention import *
+from data.statistics_TTC import NAODatasetTTC
 def draw_boxes(boxes,image):
     for box in boxes:
         box=box.detach().numpy()

@@ -16,7 +16,7 @@ from tools.comparison import generate_comparison
 import numpy as np
 from tools.Schedulers import *
 from models.IntentNetAttention import *
-from data.dataset_razvan import NAODatasetR,NAODatasetRBase
+from data.statistics_TTC import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment = Experiment(
     api_key="wU5pp8GwSDAcedNSr68JtvCpk",
@@ -47,53 +47,25 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    # model=IntentNet()
 
-    # model=IntentNetSwin(time_length=10)
-    # for p in model.temporal_context_extractor.parameters():
-    #     p.requires_grad=False
+    model=IntentNetDataAttentionR()
 
-    # model=IntentNetFuse()
-    # model=IntentNetFullAttention()
-    # model=IntentNetDataAttention()
-    model=IntentNetDataAttention()
-    # model=IntentNetBase()
-    # model = IntentNetFuseAttentionVector()
-    # model = IntentNetIC()
-    # for i in range(8):
-    #     for p in model.visual_feature[i].parameters():
-    #         p.requires_grad=False
-    #     for p in model.visual_feature2[i].parameters():
-    #         p.requires_grad=False
-    # for p in model.visual_feature.parameters():
-    #     p.requires_grad=False
-    # for p in model.visual_feature2.parameters():
-    #     p.requires_grad=False
-    # cnt=0
-    # for child in model.temporal_context.children():
-    #     cnt+=1
-    #     if cnt<=4:
-    #         for p in child.parameters():
-    #             p.requires_grad=False
-
-    # for p in model.temporal_context_extractor.parameters():
-    #     p.requires_grad = False
     total_params = sum(p.numel() for p in model.parameters())
     print(f'model size: {total_params}')
     if multi_gpu == True:
         model = nn.DataParallel(model)
+    model.load_state_dict(torch.load('/cluster/home/luohwu/experiments/EPIC/temporal_bbox/model_DR.pth',map_location='cpu')['model_state_dict'])
     model = model.to(device)
 
     if args.original_split:
-        train_dataset = NAODataset(mode='train', dataset_name=args.dataset)
-        test_dataset = NAODataset(mode='test', dataset_name=args.dataset)
+        train_dataset = NAODatasetTTC(mode='train', dataset_name=args.dataset)
+        test_dataset = NAODatasetTTC(mode='test', dataset_name=args.dataset)
     else:
-        all_data = NAODataset(mode='all', dataset_name=args.dataset)
+        all_data = NAODatasetTTC(mode='all', dataset_name=args.dataset)
         train_size=int(0.8*len(all_data))
         test_size=len(all_data)-train_size
         train_dataset, test_dataset = torch.utils.data.random_split(all_data, [train_size, test_size],
                                                                     generator=torch.Generator().manual_seed(args.seed))
-
 
     # train_dataset, test_dataset = ini_datasets(dataset_name=args.dataset, original_split=args.original_split)
 
@@ -110,38 +82,12 @@ def main():
                                 pin_memory=True,
                                 drop_last=True if torch.cuda.device_count() >= 4 else False)
 
-    if args.SGD:
-        print('using SGD')
-        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
-    else:
-
-        print('using AdamW')
-        optimizer = optim.AdamW(filter(lambda  p: p.requires_grad,model.parameters()),
-                                lr=args.lr,
-                                betas=(0.9, 0.99),
-                                # weight_decay=0
-                                # ,weight_decay=args.weight_decay
-                                )
 
 
 
 
 
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                     mode='min',
-                                                     factor=0.8,
-                                                     patience=3,
-                                                     verbose=True,
-                                                     min_lr=0.000001)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, eta_min=4e-5,verbose=True)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=25,eta_min=1e-5,verbose=True)
-    # scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.98,verbose=False)
-    # scheduler=CosExpoScheduler(optimizer,switch_step=100,eta_min=4e-5,gamma=0.995,min_lr=1e-6)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100,T_mult=2, eta_min=4e-5, verbose=True)
-    scheduler=DecayCosinWarmRestars(optimizer,T_0=1200,T_mult=2,eta_min=4e-5,decay_rate=0.5,verbose=True)
-    """"
-    Heatmap version
-    """
+
 
     criterion = CIOU_LOSS()
     # criterion=nn.MSELoss()
@@ -152,84 +98,43 @@ def main():
         os.mkdir(train_args['ckpt_path'])
 
 
-    train_loss_list = []
-    test_loss_list = []
-    current_epoch = 0
-    epoch_save = 50 if args.dataset == 'EPIC' else 50
-    for epoch in range(current_epoch + 1, train_args['epochs'] + 1):
-        print(f"==================epoch :{epoch}/{train_args['epochs']}===============================================")
-
-        train_loss = train(train_dataloader, model, criterion, optimizer, epoch=epoch)
-        test_loss = test(test_dataloader, model, criterion, epoch, illustration=False)
-        # scheduler.step(test_loss)
-        # scheduler.step()
-        train_loss_list.append(train_loss)
-        test_loss_list.append(test_loss)
-        if epoch % epoch_save == 0:
-            checkpoint_path = os.path.join(train_args['ckpt_path'], f'model_epoch_{epoch}.pth')
-            print(checkpoint_path)
-
-            torch.save({'epoch': epoch,
-                        'model_state_dict': model.state_dict()
-                        # 'optimizer_state_dict': optimizer.state_dict()
-                        },
-                       checkpoint_path)
-            test(test_dataloader, model, criterion, epoch, illustration=True)
-            if isinstance(model,IntentNetFullAttention):
-                print(f'attention vector: {torch.nn.functional.softmax(model.attention_vector, dim=0)}')
-
-        experiment.log_metrics({"test_loss": test_loss, "train_loss": train_loss}, step=epoch)
-        print(f'train loss: {train_loss:.8f} | test loss:{test_loss:.8f}')
+    test_loss,acc_table = test(test_dataloader, model, criterion, 1, illustration=False)
+    np.set_printoptions(precision=3)
+    print(acc_table)
+    fig1=plt.figure(1)
+    plt.plot(range(1,21),acc_table[1:21,2],'o')
+    plt.xticks(range(1,21,1))
+    plt.xlabel('Time to contact /s')
+    plt.ylabel('Accuracy (IoU>0.5)')
+    experiment.log_figure(figure_name=None, figure=fig1, overwrite=False, step=None)
+    plt.savefig('/cluster/home/luohwu/workspace/TemporalContextNAO/acc.svg')
+    fig2=plt.figure(2,figsize=(8,8))
+    plt.pie(acc_table[1:21,0],labels=range(1,21))
+    experiment.log_figure(figure_name=None, figure=fig2, overwrite=False, step=None)
+    plt.savefig('/cluster/home/luohwu/workspace/TemporalContextNAO/pie.svg')
 
 
-def train(train_dataloader, model, criterion, optimizer,epoch):
-    train_losses = 0.
-    total_acc=0
-    total_f1=0
 
-    len_dataset = len(train_dataloader.dataset)
-    for i, data in enumerate(train_dataloader, start=1):
-        frames, nao_bbox, img_path = data
-        # print(f'file path: {img_path}')
-        # print(f'previous_frames:{previous_frames.shape}, cur_frame: {current_frame.shape}')
-        frames=frames.to(device)
-        nao_bbox=nao_bbox.to(device)
 
-        #forward
-        outputs= model(frames)
-        del frames
 
-        # loss and acc
-        loss, iou = criterion(outputs, nao_bbox)
-        # loss = criterion(outputs, nao_bbox)
-        # acc, f1, conf_matrix = cal_acc_f1(outputs, nao_bbox)
-        acc=iou>0.5
 
-        del outputs, nao_bbox
 
-        # backward
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        train_losses += loss.item()
-        total_acc += acc.sum().item()
-    acc_avg = total_acc / len_dataset
-    f1_avg=total_f1/len_dataset
-    experiment.log_metric("train_acc_avg", acc_avg, step=epoch)
-
-    return train_losses / len_dataset
-    # return train_losses
 
 def test(test_dataloader, model, criterion, epoch, illustration):
     model.eval()
     total_test_loss = 0
     total_acc=0
-    global_min_acc=999
-    global_max_acc=-999
+    total_f1=0
+    total_conf_matrix=np.zeros([2,2])
+    global_min_iou=999
+    global_max_iou=-999
     len_dataset = len(test_dataloader.dataset)
+    acc_table=np.zeros((21,3))
     with torch.no_grad():
         for i, data in enumerate(test_dataloader):
-            frames,nao_bbox, img_path = data
+            frames,nao_bbox, img_path,TTC_level = data
+            TTC_level=TTC_level.detach().numpy()
+
             frames=frames.to(device)
             nao_bbox=nao_bbox.to(device)
 
@@ -239,13 +144,12 @@ def test(test_dataloader, model, criterion, epoch, illustration):
 
             loss, iou = criterion(outputs, nao_bbox)
             acc=iou>0.5
-            # loss = criterion(outputs, nao_bbox)
-            # acc, f1, conf_matrix=cal_acc_f1(outputs, nao_bbox)
+            acc_table[TTC_level, 0] = acc_table[TTC_level, 0] + 1
+            acc_table[TTC_level, 1] = acc_table[TTC_level, 1] + [int(item) for item in (iou.cpu().detach().numpy()>0.5)]
 
 
             total_test_loss += loss.item()
             total_acc += acc.sum().item()
-
 
             if illustration:
                 min_acc,min_index=iou.min(0) ###########################################
@@ -278,8 +182,9 @@ def test(test_dataloader, model, criterion, epoch, illustration):
     experiment.log_metric("test_acc_avg", acc_avg, step=epoch)
 
     model.train()
+    acc_table[1:,2]=acc_table[1:,1]/acc_table[1:,0]
 
-    return test_loss_avg
+    return test_loss_avg,acc_table
 
 
 

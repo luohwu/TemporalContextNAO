@@ -8,7 +8,7 @@ from itertools import chain
 import cv2
 
 def make_dirs():
-    output_dir='/media/luohwu/T7/dataset/EPIC/rgb_frames_razvan/'
+    output_dir='/media/luohwu/T7/dataset/EPIC/rgb_frames/'
     video_id_list=sorted(id)
     for video_id in video_id_list:
         participant_id=video_id[0:3]
@@ -48,7 +48,7 @@ def extract_frames_from_tar(basic_only=False):
         if basic_only==True:
             target_dir = os.path.join('/media/luohwu/T7/dataset/EPIC/rgb_frames_basic', participant_id, video_id)
         else:
-            target_dir = os.path.join('/media/luohwu/T7/dataset/EPIC/rgb_frames_razvan', participant_id, video_id)
+            target_dir = os.path.join('/media/luohwu/T7/dataset/EPIC/rgb_frames', participant_id, video_id)
         tar=tarfile.open(file_path)
         print(f'start extracting: {file_path}')
         # only extract needed frames from tar files.
@@ -60,7 +60,7 @@ def extract_frames_from_tar(basic_only=False):
 #given a video_id and its annotation file, output a generator containing only the names of needed frames.
 def py_files(members,participant_id,video_id,basic_only=False):
 
-    annos_file_path=os.path.join(args.data_path,'nao_annotations_razvan_filtered',f'{video_id}_nao.csv')
+    annos_file_path=os.path.join(args.data_path,'nao_annotations',f'nao_{video_id}.csv')
     assert os.path.join(annos_file_path), f"file not exists: {annos_file_path}"
 
     # nao_P01P01_01.csv contain the frame and added previous frames for each train/test sample

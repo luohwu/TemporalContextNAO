@@ -130,14 +130,14 @@ class IntentNetDataAttention(nn.Module):
         # print(f'shape of visual feature {visual_feature.shape}')
 
         # temporal_context=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
-        temporal_context,atten=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
+        temporal_context=self.attention(torch.cat((frame_wise_feature,visual_feature.unsqueeze(1)),dim=1))
         fused_feature = self.fuse_block(visual_feature + temporal_context)
         # print(fused_feature.shape)
 
         # return self.head(fused_feature+visual_feature)
 
         # return self.head(temporal_context + visual_feature) * torch.tensor([456, 256, 456, 256]).cuda()
-        return self.head(fused_feature + visual_feature) * torch.tensor([456, 256, 456, 256]).to(device),atten
+        return self.head(fused_feature + visual_feature) * torch.tensor([456, 256, 456, 256]).to(device)
         # return self.head(temporal_context) * torch.tensor([456, 256, 456, 256])
 
     # print('shape of visual feature neck',visual_feature.shape)
@@ -611,7 +611,7 @@ if __name__=='__main__':
     # attention=Attention(dim=512,num_heads=8,depth=6)
     # print(attention(x).shape)
 
-    model=IntentNetDataAttentionR()
+    model=IntentNetDataAttention()
     total_params = sum(p.numel() for p in model.parameters())
     print(f'model size: {total_params}')
     frames = torch.rand(2, 11, 3, 224, 224)
