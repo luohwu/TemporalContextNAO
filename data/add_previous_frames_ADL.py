@@ -4,15 +4,15 @@ import pandas as pd
 
 from opt import *
 
-def resize_bbox(row,height,width):
+def resize_bbox(row,height,width,new_height,new_width):
     bbox=row["nao_bbox"]
-    new_bbox= [bbox[0]/width*456,bbox[1]/height*256,bbox[2]/width*456,bbox[3]/height*256]
+    new_bbox= [bbox[0]/width*new_width,bbox[1]/height*new_height,bbox[2]/width*new_width,bbox[3]/height*new_height]
 
     new_bbox= [round(coord) for coord in new_bbox]
-    new_bbox[0] = 455 if new_bbox[0] > 455 else new_bbox[0]
-    new_bbox[2] = 455 if new_bbox[2] > 455 else new_bbox[2]
-    new_bbox[1] = 255 if new_bbox[1] > 255 else new_bbox[1]
-    new_bbox[3] = 255 if new_bbox[3] > 255 else new_bbox[3]
+    new_bbox[0] = new_width if new_bbox[0] > new_width else new_bbox[0]
+    new_bbox[2] = new_width if new_bbox[2] > new_width else new_bbox[2]
+    new_bbox[1] = new_height if new_bbox[1] > new_height else new_bbox[1]
+    new_bbox[3] = new_height if new_bbox[3] > new_height else new_bbox[3]
     return new_bbox
 
 
@@ -43,9 +43,11 @@ def add_previous_frames(sample_time_length=5,sample_fps=3):
                     lambda row: ([(row['frame'] + i) for i in previous_frames_helper]), axis=1)
                 annotations['previous_frames'] = annotations.apply(
                     lambda row: [frame if frame > 0 else 1 for frame in row['previous_frames']], axis=1)
-                annotations['nao_bbox_resized'] = annotations.apply(resize_bbox, args=[height, width], axis=1)
+                annotations['nao_bbox_resized'] = annotations.apply(resize_bbox, args=[height, width,256,456], axis=1)
+                annotations['nao_bbox_resized2'] = annotations.apply(resize_bbox, args=[height, width,224,224], axis=1)
                 annotations=annotations.drop(columns={'nao_bbox'})
                 annotations=annotations.rename(columns={'nao_bbox_resized':'nao_bbox'})
+                annotations=annotations.rename(columns={'nao_bbox_resized2':'nao_bbox_resized'})
                 annotations.to_csv(anno_file_path, index=False)
 
 # original annotation files are .txt files and have different data format from those EPIC annotations

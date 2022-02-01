@@ -81,32 +81,32 @@ class NAODataset(Dataset):
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose([  # [h, w]
-            transforms.Resize(args.img_resize),
+            # transforms.Resize(args.img_resize),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
             # , AddGaussianNoise(0., 0.5)
         ])
         self.transform_test = transforms.Compose([  # [h, w]
-            transforms.Resize(args.img_resize),
+            # transforms.Resize(args.img_resize),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
         ])
 
         self.transform_previous_frames = transforms.Compose([  # [h, w]
-            transforms.Resize((224, 224)),
+            # transforms.Resize((224, 224)),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
             # , AddGaussianNoise(0., 0.5)
         ])
         self.transform_previous_frames_test = transforms.Compose([  # [h, w]
             # transforms.Resize((112,112)) if args.C3D else transforms.Resize((224,224))  ,
-            transforms.Resize((224, 224)),
+            # transforms.Resize((224, 224)),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
         ])
 
     def __getitem__(self, item):
@@ -167,32 +167,32 @@ class NAODatasetBase(Dataset):
         self.normalize=transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         self.transform = transforms.Compose([  # [h, w]
-            transforms.Resize(args.img_resize),
+            # transforms.Resize(args.img_resize),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
             # , AddGaussianNoise(0., 0.5)
         ])
         self.transform_test = transforms.Compose([  # [h, w]
-            transforms.Resize(args.img_resize),
+            # transforms.Resize(args.img_resize),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
         ])
 
         self.transform_previous_frames = transforms.Compose([  # [h, w]
-            transforms.Resize((224, 224)),
+            # transforms.Resize((224, 224)),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
             # , AddGaussianNoise(0., 0.5)
         ])
         self.transform_previous_frames_test = transforms.Compose([  # [h, w]
             # transforms.Resize((112,112)) if args.C3D else transforms.Resize((224,224))  ,
-            transforms.Resize((224, 224)),
+            # transforms.Resize((224, 224)),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])  # ImageNet
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225])  # ImageNet
         ])
 
     def __getitem__(self, item):
@@ -263,6 +263,17 @@ def ini_datasets(dataset_name='ADL',original_split=False):
     return NAODataset(mode='train', data=train_data), NAODataset(mode='val', data=val_data)
 
 
+def resize_bbox(bbox,height,width,new_height,new_width):
+    new_bbox= [bbox[0]/width*new_width,bbox[1]/height*new_height,bbox[2]/width*new_width,bbox[3]/height*new_width]
+
+    new_bbox= [round(coord) for coord in new_bbox]
+    new_bbox[0] = new_width if new_bbox[0] > new_width else new_bbox[0]
+    new_bbox[2] = new_width if new_bbox[2] > new_width else new_bbox[2]
+    new_bbox[1] = new_height if new_bbox[1] > new_height else new_bbox[1]
+    new_bbox[3] = new_height if new_bbox[3] > new_height else new_bbox[3]
+    return new_bbox
+
+
 if __name__ == '__main__':
     # train_dataset,val_dataset=ini_datasets(dataset_name='ADL',original_split=False)
     train_dataset = NAODataset(mode='train',dataset_name=args.dataset)
@@ -294,10 +305,19 @@ if __name__ == '__main__':
             cv2_image = cv2.imread('test.jpg')
             cv2_image = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB)
             nao_bbox_example = nao_bbox[0].numpy()
+
+            image_224 = cv2.resize(cv2_image,(224,224))
+            nao_bbox_resized=resize_bbox(nao_bbox_example,256,456,224,224)
+            cv2.rectangle(image_224, (nao_bbox_resized[0], nao_bbox_resized[1]),
+                          (nao_bbox_resized[2], nao_bbox_resized[3]), (255, 0, 0), 3)
+
             cv2.rectangle(cv2_image, (nao_bbox_example[0], nao_bbox_example[1]),
                           (nao_bbox_example[2], nao_bbox_example[3]), (255, 0, 0), 3)
-            #
-            cv2.imshow(f'{current_frame_path[0][-10:-4]}', cv2_image)
+            winname=f'{current_frame_path[0][-10:-4]}'
+            cv2.namedWindow(winname)  # Create a named window
+            cv2.moveWindow(winname, 700, 300)  # Move it to (40,30)
+            cv2.imshow(winname, cv2_image)
+            cv2.imshow(f'{current_frame_path[0][-10:-4]}_2', image_224)
             key = cv2.waitKey(0) & 0xFF
             if key == ord('s'):
                 save_path = os.path.join('/media/luohwu/T7/experiments/visualization', window_name.replace('/', '_'))
