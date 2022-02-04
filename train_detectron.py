@@ -66,12 +66,12 @@ def make_sequence_dataset(mode='train',dataset_name='ADL'):
 
             annos = pd.read_csv(anno_path,
                                 converters={"nao_bbox": literal_eval,
-                                            # "nao_bbox_resized": literal_eval,
+                                            "nao_bbox_resized": literal_eval,
                                             "previous_frames":literal_eval})
             annos['img_path']=img_path
 
             if not annos.empty:
-                annos_subset = annos[['img_path', 'nao_bbox', 'class', 'previous_frames', 'frame']]
+                annos_subset = annos[['img_path', 'nao_bbox','nao_bbox_resized', 'class', 'previous_frames', 'frame']]
                 df_items = df_items.append(annos_subset)
 
 
@@ -90,6 +90,7 @@ def get_nao_dicts(data):
     dataset_dicts = []
     for idx,item in data.iterrows():
         # print(item['class'])
+        # print(item)
         record = {}
         #
         filename = os.path.join(item['img_path'], f"frame_{str(item['frame']).zfill(10)}.jpg")
@@ -165,7 +166,7 @@ if __name__ == '__main__':
         "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
     # Number of images per batch across all machines.
     cfg.SOLVER.IMS_PER_BATCH = 4
-    # cfg.SOLVER.BASE_LR = 0.00125  # pick a good LearningRate
+    cfg.SOLVER.BASE_LR = 0.00125  # pick a good LearningRate
     cfg.SOLVER.MAX_ITER = 29000  # No. of iterations
     cfg.SOLVER.STEPS= (15000, 20000)
     print(f'MAX ITERS:{cfg.SOLVER.MAX_ITER}')

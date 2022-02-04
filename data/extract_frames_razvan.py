@@ -6,9 +6,10 @@ import pandas as pd
 from ast import literal_eval
 from itertools import chain
 import cv2
-
-def make_dirs():
-    output_dir='/media/luohwu/T7/dataset/EPIC/rgb_frames/'
+from dataset import make_sequence_dataset
+import glob
+from PIL import Image
+def make_dirs(output_dir):
     video_id_list=sorted(id)
     for video_id in video_id_list:
         participant_id=video_id[0:3]
@@ -36,7 +37,7 @@ def move_tars():
         target_file_path=os.path.join('/media/luohwu/T7/EpicKitchen/output',participant_id,f'{video_id}.tar')
         shutil.move(file_path,target_file_path)
 
-def extract_frames_from_tar(basic_only=False):
+def extract_frames_from_tar(base_only=False):
     video_id_list=sorted(id)
     # video_id_list=['P01P01_01']
     tar_data_path='/media/luohwu/T7/EpicKitchen/tarfiles'
@@ -45,14 +46,14 @@ def extract_frames_from_tar(basic_only=False):
         video_id=video_id[3:]
         file_path=os.path.join(tar_data_path,participant_id,f'{video_id}.tar')
         assert os.path.exists(file_path), f"file not exists: {file_path}"
-        if basic_only==True:
-            target_dir = os.path.join('/media/luohwu/T7/dataset/EPIC/rgb_frames_basic', participant_id, video_id)
+        if base_only==True:
+            target_dir = os.path.join('/media/luohwu/T7/dataset/EPIC/rgb_frames', participant_id, video_id)
         else:
             target_dir = os.path.join('/media/luohwu/T7/dataset/EPIC/rgb_frames', participant_id, video_id)
         tar=tarfile.open(file_path)
         print(f'start extracting: {file_path}')
         # only extract needed frames from tar files.
-        tar.extractall(target_dir,members=py_files(tar,participant_id,video_id,basic_only))
+        tar.extractall(target_dir,members=py_files(tar,participant_id,video_id,base_only))
         tar.close()
         print(f'finished')
 
@@ -133,18 +134,37 @@ def extract_frames_from_video():
         #         if count==frames[-1]:
         #             break
 
+
+
 if __name__=='__main__':
 
     print('main')
     # m tar files
     ########################################################################
-    #create dir for selected .tar files
-    make_dirs()
+    # create dir for selected .tar files
+    # make_dirs(output_dir='/media/luohwu/T7/dataset/EPIC/rgb_frames/')
+    # make_dirs(output_dir='/media/luohwu/T7/dataset/EPIC/rgb_frames_resized/')
 
     # move only needed .tar files to our target dir
     # move_tars()
 
-    extract_frames_from_tar(basic_only=False)
+    # extract_frames_from_tar(base_only=True)
 
     # from video
     # extract_frames_from_video()
+
+    root_dir='/media/luohwu/T7/dataset/EPIC/rgb_frames/'
+    cnt=0
+    for filename in glob.iglob(root_dir + '**/*.jpg', recursive=True):
+        cnt=cnt+1
+        save_path=filename.replace('rgb_frames','rgb_frames_resized')
+        # original_image=cv2.imread(filename)
+        # resized_image=cv2.resize(original_image,(224,224))
+        # cv2.imwrite(save_path,resized_image)
+
+        original_image=Image.open(filename)
+        resized_image=original_image.resize((224,224))
+        resized_image.save(save_path)
+        if cnt % 100==0:
+            print(f'{cnt}: {save_path}')
+

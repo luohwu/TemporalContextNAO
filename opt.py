@@ -40,7 +40,8 @@ parser.add_argument('--weight_decay', default=0.05, help='weight decay')
 parser.add_argument('--SGD', default=False,action="store_true",
                     help="using SGD or Adam")
 args = parser.parse_args()
-args.data_path='/media/luohwu/T7/dataset' if args.euler==False else os.path.join(os.environ['TMPDIR'],'dataset')
+# args.data_path='/media/luohwu/T7/dataset' if args.euler==False else os.path.join(os.environ['TMPDIR'],'dataset')
+args.data_path='/media/luohwu/T7/dataset' if args.euler==False else '/cluster/home/luohwu/dataset'
 args.exp_path='/media/luohwu/T7/experiments/' if args.euler==False else '/cluster/home/luohwu/experiments'
 
 
@@ -59,6 +60,8 @@ if args.dataset == 'ADL':
     args.data_path = os.path.join(args.data_path,'ADL')
     annos_path = 'nao_annotations'
     frames_path = 'rgb_frames'  #
+    args.annos_path=annos_path
+    args.frames_path=frames_path
     if args.debug:
         # train_video_id = {'P_01', 'P_02', 'P_03', 'P_04', 'P_05', 'P_06'}
         train_video_id = ['P_10']
@@ -142,6 +145,8 @@ else:
     args.data_path = os.path.join(args.data_path, 'EPIC')
     annos_path = 'nao_annotations'
     frames_path = 'rgb_frames'
+    args.annos_path=annos_path
+    args.frames_path=frames_path
 
     if args.debug:
         train_video_id = ['P01P01_01']

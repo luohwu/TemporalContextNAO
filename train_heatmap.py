@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import torch.cuda
 from torch import optim
 from torch.utils.data import DataLoader
-from data.dataset_heatmap import *
+from data.dataset_ambiguity import *
 from opt import *
 import tarfile
 from tools.CIOU import CIOU_LOSS,CIOU_LOSS2,cal_acc_f1

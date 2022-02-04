@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0,'..')
+
 from comet_ml import Experiment
 import time
 from ast import literal_eval
@@ -35,6 +38,36 @@ experiment = Experiment(
     workspace="thesisproject",
     auto_metric_logging=False
 )
+
+
+def compute_iou(bbox1,bbox2):
+    area1=(bbox1[2]-bbox1[0])*(bbox1[3]-bbox1[1])
+    area2=(bbox2[2]-bbox2[0])*(bbox2[3]-bbox2[1])
+    inter_l=max(bbox1[0],bbox2[0])
+    inter_r=min(bbox1[2],bbox2[2])
+    inter_t=max(bbox1[1],bbox2[1])
+    inter_b=min(bbox1[3],bbox2[3])
+    inter_area = max((inter_r - inter_l),0) * max((inter_b - inter_t),0)
+    return inter_area/(area1+area2-inter_area)
+
+def none_maximum_suppression(ro_bboxes):
+    length=len(ro_bboxes)
+    if length<2:
+        return ro_bboxes
+    idx_to_remove=[]
+    for i in range(length):
+        for j in range(i+1,length):
+            iou=compute_iou(ro_bboxes[i],ro_bboxes[j])
+            # print(iou)
+            if iou>0.6:
+                idx_to_remove.append(i)
+    result=[ro_bboxes[i] for i in range(length) if i not in idx_to_remove]
+    # if len(idx_to_remove)>0:
+    #     print(f'idx: {idx_to_remove}')
+    #     print(f'bboxes: {ro_bboxes}')
+    #     print(f'bboxes_nms: {result}')
+    return result
+
 def make_sequence_dataset(mode='train',dataset_name='ADL'):
     print(f'dataset name: {dataset_name}')
     #val is the same as test
@@ -126,8 +159,8 @@ def detect_relevant_objects(row,img_folder):
     if len(pred_boxes) > 0:
         for box in pred_boxes:
             relevant_objs.append(box.cpu().numpy().tolist())
-    print(relevant_objs)
-    return relevant_objs
+    # print(relevant_objs)
+    return none_maximum_suppression(relevant_objs)
 
 if __name__ == '__main__':
     if args.euler:
@@ -161,7 +194,7 @@ if __name__ == '__main__':
     cfg.DATASETS.TEST = ()
     # Number of data loading threads
     cfg.DATALOADER.NUM_WORKERS = 2
-    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, f"model_final_{args.dataset}.pth")   # Let training initialize from model zoo
+    cfg.MODEL.WEIGHTS = os.path.join('../output/', f"model_final_{args.dataset}.pth")   # Let training initialize from model zoo
     # cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")
     # Number of images per batch across all machines.
     cfg.SOLVER.IMS_PER_BATCH = 4
@@ -178,53 +211,66 @@ if __name__ == '__main__':
     #                                  f"model_final_{args.dataset}.pth")  # Let training initialize from model zoo
     # predictor_resized = DefaultPredictor(cfg)
 
-
-
-    dataset_dicts = get_nao_dicts(make_sequence_dataset('train',args.dataset))
-    for d in random.sample(dataset_dicts, 300):
-        file_path=d["file_name"]
-        img = cv2.imread(file_path)
-        img_resized=cv2.resize(img,(224,224))
-        outputs=predictor(img)
-        visualizer = Visualizer(img[:, :, ::-1], metadata=nao_train_metadata, scale=1.0)
-        out = visualizer.draw_instance_predictions(outputs["instances"].to("cpu"))
-        # print(outputs["instances"])
-        cv2.imshow('image',out.get_image()[:, :, ::-1])
-        pred_boxes=outputs['instances'].pred_boxes
-        print('=' * 50)
-        relevant_objs = []
-        if len(pred_boxes)>0:
-            for box in pred_boxes:
-                relevant_objs.append(box.numpy().tolist())
-        print(relevant_objs)
-
-        # outputs_resized=predictor_resized(img_resized)
-        # visualizer_resized = Visualizer(img_resized[:, :, ::-1], metadata=nao_train_metadata, scale=1.0)
-        # out_resized = visualizer_resized.draw_instance_predictions(outputs_resized["instances"].to("cpu"))
-        # # print(outputs["instances"])
-        # cv2.imshow('image_resized',out_resized.get_image()[:, :, ::-1])
-        # cv2.moveWindow('image_resized',700,300)
-
-        #
-        # v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
-        # out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-        # cv2.imshow('image',out.get_image()[:, :, ::-1])
-        key = cv2.waitKey(0) & 0xFF
-        if key == ord('s'):
-            print(d["file_name"])
-            save_path = os.path.join('/media/luohwu/T7/experiments/faster_rcnn', d["file_name"][-27:].replace('/', '_'))
-            print(save_path)
-            cv2.imwrite(
-                filename=save_path,
-                img=out.get_image()[:, :, ::-1]
-            )
-            cv2.destroyAllWindows()
-            plt.close()
-        elif key == ord('q'):
-            cv2.destroyAllWindows()
-            plt.close()
-            break
+    par_video_id_list = sorted(id)
+    for video_id in sorted(par_video_id_list):
+        if args.dataset == 'EPIC':
+            img_folder=os.path.join(args.data_path, frames_path, video_id[:3],video_id[3:])
+            video_id = video_id[3:]
         else:
-            cv2.destroyAllWindows()
-            plt.close()
-            continue
+            img_folder=os.path.join(args.data_path, frames_path, video_id)
+        anno_file_path = os.path.join(args.data_path, annos_path, f'nao_{video_id}.csv')
+        if os.path.exists(anno_file_path):
+            print(f'current video id: {video_id}')
+            annotations = pd.read_csv(anno_file_path, converters={"nao_bbox": literal_eval})
+            annotations['ro_bbox']=annotations.apply(detect_relevant_objects,args=[img_folder],axis=1)
+            annotations.to_csv(anno_file_path, index=False)
+
+
+    # dataset_dicts = get_nao_dicts(make_sequence_dataset('train',args.dataset))
+    # for d in random.sample(dataset_dicts, 300):
+    #     file_path=d["file_name"]
+    #     img = cv2.imread(file_path)
+    #     img_resized=cv2.resize(img,(224,224))
+    #     outputs=predictor(img)
+    #     visualizer = Visualizer(img[:, :, ::-1], metadata=nao_train_metadata, scale=1.0)
+    #     out = visualizer.draw_instance_predictions(outputs["instances"].to("cpu"))
+    #     # print(outputs["instances"])
+    #     cv2.imshow('image',out.get_image()[:, :, ::-1])
+    #     pred_boxes=outputs['instances'].pred_boxes
+    #     print('=' * 50)
+    #     relevant_objs = []
+    #     if len(pred_boxes)>0:
+    #         for box in pred_boxes:
+    #             relevant_objs.append(box.numpy().tolist())
+    #     print(relevant_objs)
+    #
+    #     # outputs_resized=predictor_resized(img_resized)
+    #     # visualizer_resized = Visualizer(img_resized[:, :, ::-1], metadata=nao_train_metadata, scale=1.0)
+    #     # out_resized = visualizer_resized.draw_instance_predictions(outputs_resized["instances"].to("cpu"))
+    #     # # print(outputs["instances"])
+    #     # cv2.imshow('image_resized',out_resized.get_image()[:, :, ::-1])
+    #     # cv2.moveWindow('image_resized',700,300)
+    #
+    #     #
+    #     # v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
+    #     # out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+    #     # cv2.imshow('image',out.get_image()[:, :, ::-1])
+    #     key = cv2.waitKey(0) & 0xFF
+    #     if key == ord('s'):
+    #         print(d["file_name"])
+    #         save_path = os.path.join('/media/luohwu/T7/experiments/faster_rcnn', d["file_name"][-27:].replace('/', '_'))
+    #         print(save_path)
+    #         cv2.imwrite(
+    #             filename=save_path,
+    #             img=out.get_image()[:, :, ::-1]
+    #         )
+    #         cv2.destroyAllWindows()
+    #         plt.close()
+    #     elif key == ord('q'):
+    #         cv2.destroyAllWindows()
+    #         plt.close()
+    #         break
+    #     else:
+    #         cv2.destroyAllWindows()
+    #         plt.close()
+    #         continue

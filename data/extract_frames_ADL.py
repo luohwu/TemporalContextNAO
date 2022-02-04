@@ -6,9 +6,12 @@ import pandas as pd
 from ast import literal_eval
 from itertools import chain
 import cv2
+from dataset import make_sequence_dataset
+import glob
+from PIL import Image
 
-def make_dirs():
-    output_dir='/media/luohwu/T7/dataset/ADL/rgb_frames/'
+
+def make_dirs(output_dir):
     video_id_list=sorted(id)
     for video_id in video_id_list:
         video_id=video_id
@@ -19,7 +22,7 @@ def make_dirs():
 
 
 #given a video_id and its annotation file, output a generator containing only the names of needed frames.
-def get_frames_id(video_id,basic_only=False):
+def get_frames_id(video_id,base_only=False):
 
     annos_file_path=os.path.join(args.data_path,annos_path,f'nao_{video_id}.csv')
     assert os.path.join(annos_file_path), f"file not exists: {annos_file_path}"
@@ -34,7 +37,7 @@ def get_frames_id(video_id,basic_only=False):
     # flatten 2d list to 1d list
     previousframes=list(chain.from_iterable(previousframes))
 
-    if basic_only==False:
+    if base_only==False:
         #concatenate frames and added previous frames into a single list
         all_frames=frames+previousframes
     else:
@@ -44,8 +47,8 @@ def get_frames_id(video_id,basic_only=False):
     return all_frames
 
 
-def extract_frames_from_video(video_id):
-    frames=get_frames_id(video_id)
+def extract_frames_from_video(video_id,base_only):
+    frames=get_frames_id(video_id,base_only=base_only)
     frames=sorted(frames)
     vidcap = cv2.VideoCapture(f'/media/luohwu/T7/ADL/{video_id}.mp4')
     # vidcap = cv2.VideoCapture('/home/luohwu/Videos/P01_02.mp4')
@@ -65,15 +68,40 @@ def extract_frames_from_video(video_id):
             cv2.imwrite(f'/media/luohwu/T7/dataset/ADL/rgb_frames/{video_id}/frame_{str(count).zfill(10)}.jpg',image)
 
 
+
+
 if __name__=='__main__':
 
     #create dir for rgb_frames
-    make_dirs()
-    for id in range(1,21):
-        video_id=f'P_{str(id).zfill(2)}'
-        print(f'start extracting frames: {video_id}')
-        extract_frames_from_video(video_id)
-        print('finished')
+    # make_dirs(output_dir='/media/luohwu/T7/dataset/ADL/rgb_frames/')
+    # make_dirs(output_dir='/media/luohwu/T7/dataset/ADL/rgb_frames_resized/')
+    #
+    # for id in range(1,21):
+    #     video_id=f'P_{str(id).zfill(2)}'
+    #     print(f'start extracting frames: {video_id}')
+    #     extract_frames_from_video(video_id,base_only=True)
+    #     print('finished')
+
+
+
+    # resize all images to (224,224)
+    root_dir='/media/luohwu/T7/dataset/ADL/rgb_frames/'
+    cnt=0
+    for filename in glob.iglob(root_dir + '**/*.jpg', recursive=True):
+        cnt=cnt+1
+        save_path=filename.replace('rgb_frames','rgb_frames_resized')
+        # original_image=cv2.imread(filename)
+        # resized_image=cv2.resize(original_image,(224,224))
+        # cv2.imwrite(save_path,resized_image)
+
+        original_image=Image.open(filename)
+        resized_image=original_image.resize((224,224))
+        resized_image.save(save_path)
+
+        if cnt % 100==0:
+            print(f'{cnt}: {save_path}')
+
+
 
 
 

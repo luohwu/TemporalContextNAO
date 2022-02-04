@@ -4,6 +4,8 @@ import pandas as pd
 
 from opt import *
 
+
+
 def resize_bbox(row,height,width,new_height,new_width):
     bbox=row["nao_bbox"]
     new_bbox= [bbox[0]/width*new_width,bbox[1]/height*new_height,bbox[2]/width*new_width,bbox[3]/height*new_height]
