@@ -158,7 +158,7 @@ def detect_relevant_objects(row,img_folder):
     relevant_objs = []
     if len(pred_boxes) > 0:
         for box in pred_boxes:
-            relevant_objs.append(box.cpu().numpy().tolist())
+            relevant_objs.append(box.int().cpu().numpy().tolist())
     # print(relevant_objs)
     return none_maximum_suppression(relevant_objs)
 
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     # cfg.MODEL.DEVICE=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if not args.euler:
             cfg.MODEL.DEVICE='cpu'
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2  # set threshold for this model
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2 if args.dataset=='ADL' else 0.3  # set threshold for this model
     predictor = DefaultPredictor(cfg)
 
     # cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR,

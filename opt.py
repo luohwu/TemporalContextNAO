@@ -40,9 +40,14 @@ parser.add_argument('--weight_decay', default=0.05, help='weight decay')
 parser.add_argument('--SGD', default=False,action="store_true",
                     help="using SGD or Adam")
 args = parser.parse_args()
-# args.data_path='/media/luohwu/T7/dataset' if args.euler==False else os.path.join(os.environ['TMPDIR'],'dataset')
+args.data_path='/media/luohwu/T7/dataset' if args.euler==False else os.path.join(os.environ['TMPDIR'],'dataset')
 args.data_path='/media/luohwu/T7/dataset' if args.euler==False else '/cluster/home/luohwu/dataset'
-args.exp_path='/media/luohwu/T7/experiments/' if args.euler==False else '/cluster/home/luohwu/experiments'
+# args.exp_path='/media/luohwu/T7/experiments/' if args.euler==False else '/cluster/home/luohwu/experiments'
+args.data_path='/home/luohwu/euler/dataset' if args.euler==False else '/cluster/home/luohwu/dataset'
+args.exp_path='/home/luohwu/euler/experiments' if args.euler==False else '/cluster/home/luohwu/experiments'
+
+
+
 
 
 print(args)
